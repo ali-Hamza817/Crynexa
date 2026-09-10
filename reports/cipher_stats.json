@@ -1,0 +1,98 @@
+{
+  "chaos r2 perm+diff (default)": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.939274002442817,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": -0.008022680617742705,
+    "corr_v_cipher": 0.019996840172926106,
+    "corr_d_cipher": -0.00727381517075014,
+    "npcr": 99.55902099609375,
+    "uaci": 33.44965517131332,
+    "key_sens_npcr": 99.62514241536459,
+    "key_sens_uaci": 33.51524203431372
+  },
+  "chaos r1 perm+diff": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.9391690942136295,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": 0.020993576204428398,
+    "corr_v_cipher": 0.004540095801583929,
+    "corr_d_cipher": 0.021082085960100354,
+    "npcr": 54.135640462239586,
+    "uaci": 18.03363276462929,
+    "key_sens_npcr": 99.6063232421875,
+    "key_sens_uaci": 33.48487405215994
+  },
+  "chaos r3 perm+diff": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.93938359429982,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": 0.007318143421552585,
+    "corr_v_cipher": 0.004648578235317856,
+    "corr_d_cipher": -3.7458418638283334e-05,
+    "npcr": 99.62259928385416,
+    "uaci": 33.49806243298101,
+    "key_sens_npcr": 98.065185546875,
+    "key_sens_uaci": 32.931127610549424
+  },
+  "chaos r1 diffuse_only": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.938722283215731,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": -0.0015609940075947402,
+    "corr_v_cipher": -0.005228871031246683,
+    "corr_d_cipher": 0.005401214140813944,
+    "npcr": 100.0,
+    "uaci": 33.173616696027366,
+    "key_sens_npcr": 96.50624593098959,
+    "key_sens_uaci": 32.369941262637866
+  },
+  "chaos r1 permute_only": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 5.59466334622976,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": 0.0038778454114577914,
+    "corr_v_cipher": 0.01209348396150934,
+    "corr_d_cipher": 0.04685892907837588,
+    "npcr": 0.03255208333333333,
+    "uaci": 0.00012765522875816991,
+    "key_sens_npcr": 97.37599690755209,
+    "key_sens_uaci": 31.212628931781044
+  },
+  "chaos r2 no-feedback": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.93869157412902,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": 0.00948906136505209,
+    "corr_v_cipher": -0.004918932551795766,
+    "corr_d_cipher": 0.03588001598033902,
+    "npcr": 0.03255208333333333,
+    "uaci": 0.00012765522875816991,
+    "key_sens_npcr": 99.61293538411459,
+    "key_sens_uaci": 33.38963527305454
+  },
+  "chaos r2 rowcol": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.938651072195757,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": 0.028229817464921755,
+    "corr_v_cipher": 0.0005747405585651165,
+    "corr_d_cipher": -0.002504783776435082,
+    "npcr": 93.76475016276041,
+    "uaci": 31.648290297564337,
+    "key_sens_npcr": 99.62005615234375,
+    "key_sens_uaci": 33.524826149535336
+  },
+  "AES-CTR (control)": {
+    "entropy_plain": 5.59466334622976,
+    "entropy_cipher": 7.939377572558165,
+    "corr_h_plain": 0.9988079095777921,
+    "corr_h_cipher": 0.04139359401360376,
+    "corr_v_cipher": -0.0037856746240034394,
+    "corr_d_cipher": 0.011862509460957217,
+    "npcr": 0.03255208333333333,
+    "uaci": 0.00012765522875816991,
+    "key_sens_npcr": 99.57987467447916,
+    "key_sens_uaci": 33.47265505323223
+  }
+}

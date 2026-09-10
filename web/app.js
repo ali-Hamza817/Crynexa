@@ -1,0 +1,646 @@
+/* Crynexa — results frontend.
+   React + htm, no build step. All data comes from data.json, which is
+   regenerated from the measured run outputs by build_web.py. */
+
+const { useState, useEffect, useMemo, useRef } = React;
+const html = htm.bind(React.createElement);
+
+/* React requires `style` to be an object, not a string. S() converts inline
+   CSS text to the camelCased object form React expects. */
+const S = (css) => Object.fromEntries(
+  css.split(";").filter((x) => x.trim()).map((p) => {
+    const i = p.indexOf(":");
+    const k = p.slice(0, i).trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    return [k, p.slice(i + 1).trim()];
+  }));
+
+const f = (v, d = 3) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
+const pct = (v) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
+const VERDICT_COLOR = { broken: "var(--emerald)", partial: "var(--amber)", resisted: "var(--indigo)" };
+
+/* ------------------------------------------------------------ helpers -- */
+function useReveal() {
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (es) => es.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
+      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" }
+    );
+    document.querySelectorAll(".rev:not(.in)").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  });
+}
+
+function CountUp({ value, decimals = 0, suffix = "" }) {
+  const [v, setV] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    let raf, t0;
+    const io = new IntersectionObserver((es) => {
+      if (!es[0].isIntersecting) return;
+      io.disconnect();
+      const dur = 900;
+      const tick = (t) => {
+        if (!t0) t0 = t;
+        const k = Math.min(1, (t - t0) / dur);
+        setV(value * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    if (ref.current) io.observe(ref.current);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [value]);
+  return html`<span ref=${ref}>${Number(v).toFixed(decimals)}${suffix}</span>`;
+}
+
+const Section = ({ id, alt, eyebrow, title, lede, children }) => html`
+  <section id=${id} class=${alt ? "alt" : ""}>
+    <div class="wrap">
+      <div class="rev">
+        ${eyebrow && html`<div class="eyebrow">${eyebrow}</div>`}
+        ${title && html`<h2 class="h2">${title}</h2>`}
+        ${lede && html`<p class="lede">${lede}</p>`}
+      </div>
+      ${children}
+    </div>
+  </section>`;
+
+const Stat = ({ k, v, n, cls, ribbon }) => html`
+  <div class="card stat rev">
+    ${ribbon && html`<div class=${"ribbon rb-" + ribbon}></div>`}
+    <div class="k">${k}</div><div class=${"v " + (cls || "")}>${v}</div>
+    ${n && html`<div class="n">${n}</div>`}
+  </div>`;
+
+/* --------------------------------------------------------------- nav -- */
+const NAV = [
+  ["overview", "Overview"], ["problem", "The problem"], ["datasets", "Datasets"],
+  ["cipher", "Cipher"], ["method", "Method"], ["calibration", "Calibration"],
+  ["results", "Results"], ["samples", "Reconstructions"],
+  ["findings", "Findings"], ["status", "Status"],
+];
+
+const Nav = ({ generated }) => html`
+  <div class="nav">
+    <div class="wrap">
+      <div class="brand"><span class="dot"></span>Crynexa</div>
+      <nav>${NAV.map(([id, l]) => html`<a key=${id} href=${"#" + id}>${l}</a>`)}</nav>
+      <div class="live"><span class="pulse"></span>${generated}</div>
+    </div>
+  </div>`;
+
+/* -------------------------------------------------------------- hero -- */
+const Hero = ({ runs }) => {
+  const ka = runs.filter((r) => r.regime === "key-agnostic");
+  const broken = ka.filter((r) => r.verdict === "broken").length;
+  return html`
+  <div class="hero">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="wrap hero-grid">
+      <div class="rev">
+        <div class="eyebrow">Master's thesis · neural cryptanalysis</div>
+        <h1>Can a network learn <span class="grad">the cipher</span>, not just the key?</h1>
+        <p class="lede">
+          Chaos-based image encryption is attacked with deep networks trained across a
+          large key population, then tested on keys never seen in training. The question
+          is not whether a network can invert one key — it is whether anything it learned
+          is <em>key-independent</em>, and which structural properties of a cipher decide that.
+        </p>
+        <div class="tags">
+          <span class="tag i">${runs.length} trained models</span>
+          <span class="tag c">4 chaos maps</span>
+          <span class="tag e">AES-CTR control</span>
+          <span class="tag">measured, not simulated</span>
+        </div>
+      </div>
+      <div class="grid g2 rev">
+        <${Stat} ribbon="indigo" k="Runs completed" v=${html`<${CountUp} value=${runs.length} />`}
+                 n="every number on this page comes from a trained model" />
+        <${Stat} ribbon="emerald" k="Configs broken" cls="ok"
+                 v=${html`<${CountUp} value=${broken} />`}
+                 n=${`of ${ka.length} attacked with unlimited key diversity`} />
+      </div>
+    </div>
+  </div>`;
+};
+
+/* ----------------------------------------------------------- problem -- */
+const Problem = () => html`
+  <${Section} id="problem" alt eyebrow="The research problem"
+    title="Zero-shot key-agnostic recovery is bounded, not merely hard"
+    lede=${`Trained under a reconstruction loss, the best possible attacker computes the
+      posterior mean E[P | C]. When the key is unobserved it must be marginalised out —
+      and for a cipher with a large key space and a high-entropy keystream, the ciphertext
+      is then statistically independent of the plaintext. The posterior collapses to the
+      prior, and the optimal output is the dataset mean image.`}>
+    <div class="grid g3 mt2">
+      <div class="card rev"><div class="ribbon rb-indigo"></div>
+        <h3 style=${S("font-size:16px")}>What that rules out</h3>
+        <p class="note">No amount of training keys, data, or model capacity recovers a
+        plaintext from a ciphertext alone under a sound cipher. Failure there is a
+        theorem, not a tuning problem.</p></div>
+      <div class="card rev"><div class="ribbon rb-cyan"></div>
+        <h3 style=${S("font-size:16px")}>What it leaves open</h3>
+        <p class="note">Real chaos schemes are not sound in that sense. They retain
+        key-independent structure: permutation-only stages preserve the histogram exactly,
+        row/column scrambles preserve whole rows, low round counts leave local
+        correlation. Attack success measures exactly how much.</p></div>
+      <div class="card rev"><div class="ribbon rb-amber"></div>
+        <h3 style=${S("font-size:16px")}>So the thesis measures</h3>
+        <p class="note">Key-agnostic recoverability is treated as a property of a cipher
+        <em>configuration</em>. The contribution is an instrument that measures it, and a
+        map of which structural knobs confer resistance.</p></div>
+    </div>
+  <//>`;
+
+/* ---------------------------------------------------------- datasets -- */
+const Datasets = ({ data }) => html`
+  <${Section} id="datasets" eyebrow="Data"
+    title="Three plaintext sources, chosen to separate two effects"
+    lede=${`A reconstruction can look right for two very different reasons: the network
+      inverted the cipher, or it produced a plausible image from what it learned about the
+      dataset. Varying plaintext redundancy while holding the cipher fixed tells those apart.`}>
+    <div class="grid g3 mt2">
+      ${Object.entries(data.datasets).map(([k, d]) => html`
+        <div class="card rev" key=${k}>
+          <div class=${"ribbon rb-" + (d.color === "indigo" ? "indigo" : d.color === "cyan" ? "cyan" : "amber")}></div>
+          <h3 style=${S("font-size:17px")}>${d.name}</h3>
+          <div class="note" style=${S("margin-top:4px;font-weight:650;color:var(--indigo)")}>${d.role}</div>
+          <div class="kv mt"><span class="k">Shape</span><span class="v mono">${d.shape}</span></div>
+          <div class="kv"><span class="k">Source</span><span class="v mono" style=${S("font-size:11px")}>${d.source}</span></div>
+          <p class="note"><strong>Why this dataset.</strong> ${d.why}</p>
+        </div>`)}
+    </div>
+    <div class="card rev mt2">
+      <h3 style=${S("font-size:16px")}>Measured redundancy — the resource an attack consumes</h3>
+      <div class="tablewrap mt" style=${S("box-shadow:none")}>
+        <table><thead><tr><th class="l">plaintext source</th>
+          <th>adjacent |diff|</th><th>adjacent correlation</th></tr></thead>
+        <tbody>${data.datasetStats.map((s) => html`
+          <tr key=${s.dataset}><td class="l mono">${s.dataset}</td>
+            <td>${f(s.absDiff, 2)}</td><td>${f(s.corr, 4)}</td></tr>`)}
+        </tbody></table>
+      </div>
+      <p class="note">Uniform noise has no exploitable structure, so any above-chance
+      retrieval on it is unambiguously cryptanalytic. Structured plaintexts allow a network
+      to be partly right for reasons that have nothing to do with the key.</p>
+    </div>
+  <//>`;
+
+/* ------------------------------------------------------------ cipher -- */
+const Cipher = ({ data }) => html`
+  <${Section} id="cipher" alt eyebrow="The cryptosystem"
+    title="One parameterised cipher family, not one fixed scheme"
+    lede=${`A Fridrich-architecture permutation–diffusion cipher with every structural
+      property exposed as an independent knob, plus AES-CTR behind the same interface as a
+      negative control. The knobs are the independent variables of the whole study: this
+      turns a pass/fail question into a dose–response measurement.`}>
+    <div class="flow mt2 rev">
+      ${["plaintext", "chaotic keystream", "permutation", "diffusion (+CBC)", "× rounds", "ciphertext"]
+        .map((s, i) => html`<${React.Fragment} key=${s}>
+          ${i > 0 && html`<span class="arr">→</span>`}<span class="step">${s}</span><//>`)}
+    </div>
+    <div class="grid g4 mt2">
+      ${[["Chaos maps", "logistic · tent · Hénon · PWLCM", "indigo"],
+         ["Rounds", "1 – 8", "cyan"],
+         ["Mode", "permute · diffuse · both", "emerald"],
+         ["Permutation scope", "full 2-D · row/col · blockwise", "amber"],
+         ["Keyed permutation", "on / off", "indigo"],
+         ["Feedback", "CBC chain / none", "cyan"],
+         ["Keystream precision", "float64 / float32", "emerald"],
+         ["Negative control", "AES-128-CTR", "amber"]].map(([k, v, c]) => html`
+        <div class="card rev" key=${k}><div class=${"ribbon rb-" + c}></div>
+          <div class="k" style=${S("font-size:11.5px;font-weight:700;letter-spacing:.06em; text-transform:uppercase;color:var(--mut)")}>${k}</div>
+          <div style=${S("font-weight:650;margin-top:7px;font-size:14px")}>${v}</div></div>`)}
+    </div>
+
+    ${data.cipherStats.length > 0 && html`
+    <div class="card rev mt2">
+      <h3 style=${S("font-size:16px")}>Security validation — is this a strawman?</h3>
+      <p class="note" style=${S("margin-top:6px")}>Published chaos-cipher targets: entropy ≥ 7.99
+      (asymptotic), adjacent correlation ≈ 0, NPCR ≈ 99.61%, UACI ≈ 33.46%. If the
+      implemented cipher missed these, every attack result on it would be worthless.</p>
+      <div class="tablewrap mt" style=${S("box-shadow:none")}><div class="tscroll">
+        <table><thead><tr><th class="l">configuration</th><th>entropy</th>
+          <th>corr H</th><th>corr V</th><th>NPCR %</th><th>UACI %</th>
+          <th>key sens. NPCR %</th></tr></thead>
+        <tbody>${data.cipherStats.map((s) => html`
+          <tr key=${s.config}><td class="l mono">${s.config}</td>
+            <td>${f(s.entropy, 3)}</td><td>${f(s.corrH, 4)}</td><td>${f(s.corrV, 4)}</td>
+            <td>${f(s.npcr, 3)}</td><td>${f(s.uaci, 3)}</td><td>${f(s.keySensNpcr, 3)}</td>
+          </tr>`)}
+        </tbody></table>
+      </div></div>
+      <p class="note"><strong>On the entropy figure.</strong> 8.0 bits is unreachable for a
+      32×32 image: 3072 samples over 256 bins cap a perfectly uniform source at
+      <strong>7.9407</strong>. The reference configuration measures 7.939 — at the ceiling.
+      Reading "7.94 &lt; 7.99, therefore weak" would be an artifact of image size.</p>
+      <div class="tablewrap mt" style=${S("box-shadow:none")}>
+        <table><thead><tr><th class="l">image size</th><th>samples</th>
+          <th>entropy ceiling</th></tr></thead>
+        <tbody>${data.entropyCeiling.map((e) => html`
+          <tr key=${e.size}><td class="l">${e.size}</td>
+            <td class="mono">${e.samples ? e.samples.toLocaleString() : "—"}</td>
+            <td>${f(e.ceiling, 4)}</td></tr>`)}
+        </tbody></table>
+      </div>
+    </div>`}
+  <//>`;
+
+/* ------------------------------------------------------------ method -- */
+const Method = ({ data }) => html`
+  <${Section} id="method" eyebrow="Method"
+    title="Retrieval, not PSNR — and every cipher faces more than one attacker"
+    lede=${`PSNR and SSIM reward outputs that are plausible. They cannot tell "recovered
+      this image" from "produced a plausible image". For a cryptanalysis claim that
+      distinction is the whole point, so top-1 retrieval against distractors is the
+      primary metric and PSNR is reported alongside it.`}>
+    <div class="grid g2 mt2">
+      <div class="card rev"><div class="ribbon rb-indigo"></div>
+        <h3 style=${S("font-size:16px")}>Primary metric — top-1 retrieval</h3>
+        <p class="note">Given a reconstruction, is the true plaintext the nearest candidate
+        among K−1 distractors? Similarity is cosine on mean-centred images, so a constant
+        prior-only prediction becomes the zero vector, ties everywhere, and scores exactly
+        at chance. Both endpoints were verified:</p>
+        <div class="tablewrap mt" style=${S("box-shadow:none")}>
+          <table><thead><tr><th class="l">predictor</th><th>@10</th><th>@100</th><th>@1000</th></tr></thead>
+          <tbody>${data.metricCheck.map((m) => html`
+            <tr key=${m.predictor}><td class="l">${m.predictor}</td>
+              <td>${f(m.p10, 4)}</td><td>${f(m.p100, 4)}</td><td>${f(m.p1000, 4)}</td></tr>`)}
+          </tbody></table>
+        </div>
+      </div>
+      <div class="card rev"><div class="ribbon rb-cyan"></div>
+        <h3 style=${S("font-size:16px")}>Controls that make a null result meaningful</h3>
+        <div class="kv mt"><span class="k">Prior floor</span>
+          <span class="v">constant = mean training image</span></div>
+        <div class="kv"><span class="k">Mismatch</span>
+          <span class="v">wrong ciphertext → measures hallucination</span></div>
+        <div class="kv"><span class="k">Negative</span>
+          <span class="v">AES-CTR must stay at chance</span></div>
+        <div class="kv"><span class="k">Positive</span>
+          <span class="v">key-independent cipher must break</span></div>
+        <div class="kv"><span class="k">Same-key ceiling</span>
+          <span class="v">per-config upper bound</span></div>
+        <p class="note">A key-agnostic attack that fails is uninterpretable on its own:
+        "the cipher resists" and "this attacker cannot invert it at all" give identical
+        numbers. Every configuration is therefore also run with a single fixed key.</p>
+      </div>
+    </div>
+    <div class="grid g2 mt2">
+      ${Object.entries(data.attackers).map(([k, a]) => html`
+        <div class="card rev" key=${k}>
+          <h3 style=${S("font-size:15px")}>${a.label}</h3>
+          <p class="note" style=${S("margin-top:5px")}>${a.desc}</p>
+          <div class="kv mt"><span class="k">input</span><span class="v mono">${a.input}</span></div>
+        </div>`)}
+    </div>
+  <//>`;
+
+/* ------------------------------------------------------- calibration -- */
+const Calibration = ({ runs }) => {
+  const best = (pred) => {
+    const m = runs.filter(pred);
+    return m.length ? m.reduce((a, b) => (a.unseenTop1 > b.unseenTop1 ? a : b)) : null;
+  };
+  const pos = best((r) => /posctrl|calpos/.test(r.run) && r.regime !== "same-key");
+  const aes = best((r) => r.cipher === "aes" && r.regime === "key-agnostic")
+           || best((r) => r.cipher === "aes");
+  const ok = pos && pos.unseenTop1 > 0.5 && aes && aes.unseenTop1 < 5 * aes.chance;
+  return html`
+  <${Section} id="calibration" alt eyebrow="Calibration"
+    title="The instrument brackets the full range"
+    lede=${`Before any security claim, the pipeline must break a cipher that has no key
+      dependence at all, and fail completely on one that is sound. Both controls have the
+      attacker at top-1 = 1.000 on seen keys, so capability is not in question — the only
+      thing separating them is key dependence.`}>
+    <div class="grid g4 mt2">
+      ${pos && html`<${Stat} ribbon="emerald" k="Positive control" cls="ok"
+        v=${f(pos.unseenTop1, 3)} n="key-independent cipher, unseen keys — must break" />`}
+      ${aes && html`<${Stat} ribbon="indigo" k="AES-CTR control" cls="ind"
+        v=${f(aes.unseenTop1, 3)} n="must stay at chance — else the pipeline leaks plaintext" />`}
+      <${Stat} ribbon="cyan" k="Chance baseline" cls="cy" v="0.010" n="top-1 at pool size 100" />
+      <${Stat} ribbon=${ok ? "emerald" : "amber"} k="Instrument status"
+        cls=${ok ? "ok" : "wn"} v=${ok ? "Calibrated" : "Pending"}
+        n=${ok ? "separation is ~100× — measurements in between are meaningful"
+               : "waiting on both controls"} />
+    </div>
+    ${pos && aes && html`
+    <div class="card rev mt2">
+      <div class="tablewrap" style=${S("box-shadow:none")}><table>
+        <thead><tr><th class="l">control</th><th>seen top-1</th><th>unseen top-1</th>
+          <th>gain over floor</th><th class="l">meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="l">no key dependence (fixed permutation)</td>
+            <td>${f(pos.seenTop1, 3)}</td>
+            <td style=${S("color:var(--emerald);font-weight:700")}>${f(pos.unseenTop1, 3)}</td>
+            <td>${f(pos.gainDb, 2)} dB</td>
+            <td class="l">detects a real leak perfectly</td></tr>
+          <tr><td class="l">full key dependence (AES-CTR)</td>
+            <td>${f(aes.seenTop1, 3)}</td>
+            <td style=${S("color:var(--rose);font-weight:700")}>${f(aes.unseenTop1, 3)}</td>
+            <td>${f(aes.gainDb, 2)} dB</td>
+            <td class="l">no hallucinated credit</td></tr>
+        </tbody></table></div>
+      <p class="note">AES seen = 1.000 is not a break of AES. A fixed key with a fixed
+      nonce yields a fixed keystream, which is learnable from enough pairs under that key.
+      With a fresh key the attack is dead at chance.</p>
+    </div>`}
+  <//>`;
+};
+
+/* ----------------------------------------------------------- results -- */
+const COLS = [
+  ["variant", "configuration", 1], ["regime", "keys", 1], ["attacker", "attacker", 1],
+  ["dataset", "data", 1], ["nKeys", "# keys", 0], ["seenTop1", "seen top-1", 0],
+  ["unseenTop1", "unseen top-1", 0], ["mismatchTop1", "mismatch", 0],
+  ["unseenPsnr", "psnr", 0], ["floorPsnr", "floor", 0], ["gainDb", "gain dB", 0],
+  ["kgg", "KGG", 0], ["secs", "sec", 0],
+];
+
+const Results = ({ runs, sel, setSel }) => {
+  const [q, setQ] = useState("");
+  const [ds, setDs] = useState("all");
+  const [at, setAt] = useState("all");
+  const [rg, setRg] = useState("all");
+  const [sk, setSk] = useState("unseenTop1");
+  const [sd, setSd] = useState(-1);
+
+  const uniq = (k) => [...new Set(runs.map((r) => r[k]))].sort();
+  const rows = useMemo(() => runs
+    .filter((r) => (!q || r.run.toLowerCase().includes(q.toLowerCase()))
+      && (ds === "all" || r.dataset === ds) && (at === "all" || r.attacker === at)
+      && (rg === "all" || r.regime === rg))
+    .sort((a, b) => {
+      const x = a[sk], y = b[sk];
+      if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * sd;
+    }), [runs, q, ds, at, rg, sk, sd]);
+
+  const ka = rows.filter((r) => r.regime === "key-agnostic").slice(0, 24);
+  const maxV = Math.max(0.06, ...ka.map((r) => r.unseenTop1));
+
+  return html`
+  <${Section} id="results" eyebrow="Results"
+    title="Key-agnostic attack success by cipher configuration"
+    lede=${`Green marks a configuration broken without ever seeing its key — unseen-key
+      retrieval at five times chance or better. Click any row for its reconstructions.`}>
+
+    ${ka.length > 0 && html`
+    <div class="card rev mt2">
+      <svg viewBox=${`0 0 780 ${ka.length * 25 + 32}`} width="100%" height=${ka.length * 25 + 32}>
+        ${ka.map((r, i) => {
+          const y = i * 25 + 14, L = 268, W = 780, x = (v) => L + (v / maxV) * (W - L - 78);
+          return html`<${React.Fragment} key=${r.run}>
+            <text x=${L - 10} y=${y + 12} text-anchor="end" font-size="11.5"
+                  fill="var(--mut)" font-family="var(--mono)">
+              ${r.variant.slice(0, 30)}</text>
+            <rect x=${L} y=${y + 2} width=${Math.max(2, x(r.unseenTop1) - L)} height="16" rx="4"
+                  fill=${VERDICT_COLOR[r.verdict]} opacity="0.9">
+              <animate attributeName="width" from="0" to=${Math.max(2, x(r.unseenTop1) - L)}
+                       dur="0.8s" fill="freeze" />
+            </rect>
+            <text x=${x(r.unseenTop1) + 8} y=${y + 15} font-size="11.5" fill="var(--mut)"
+                  font-variant-numeric="tabular-nums">${f(r.unseenTop1, 3)}</text>
+          <//>`;
+        })}
+        ${(() => { const L = 268, W = 780, x = (v) => L + (v / maxV) * (W - L - 78),
+                    cx = x(ka[0].chance), H = ka.length * 25 + 32;
+          return html`<${React.Fragment}>
+            <line x1=${cx} y1="6" x2=${cx} y2=${H - 16} stroke="var(--rose)"
+                  stroke-width="1.5" stroke-dasharray="4 3" />
+            <text x=${cx + 6} y=${H - 4} font-size="11" fill="var(--rose)">chance 0.01</text>
+          <//>`; })()}
+      </svg>
+      <div class="legend">
+        <span><i style=${S("background:var(--emerald)")}></i>broken — ≥5× chance</span>
+        <span><i style=${S("background:var(--amber)")}></i>partial — 2–5× chance</span>
+        <span><i style=${S("background:var(--indigo)")}></i>resisted — &lt;2× chance</span>
+      </div>
+    </div>`}
+
+    <div class="controls mt2 rev">
+      <input placeholder="filter by name…" value=${q}
+             onInput=${(e) => setQ(e.target.value)} style=${S("min-width:230px")} />
+      ${[[ds, setDs, "dataset"], [at, setAt, "attacker"], [rg, setRg, "regime"]].map(
+        ([val, set, key]) => html`
+        <select key=${key} value=${val} onChange=${(e) => set(e.target.value)}>
+          <option value="all">all ${key}s</option>
+          ${uniq(key).map((v) => html`<option key=${v} value=${v}>${v}</option>`)}
+        </select>`)}
+      <span class="chipcount">${rows.length} runs</span>
+    </div>
+
+    <div class="tablewrap rev"><div class="tscroll">
+      <table>
+        <thead><tr>${COLS.map(([k, l, isL]) => html`
+          <th key=${k} class=${isL ? "l" : ""}
+              onClick=${() => { setSd(k === sk ? -sd : -1); setSk(k); }}>
+            ${l}${sk === k ? (sd > 0 ? " ▲" : " ▼") : ""}</th>`)}
+        </tr></thead>
+        <tbody>
+          ${rows.length === 0 ? html`<tr><td colspan="13" class="empty">no runs match</td></tr>`
+          : rows.map((r) => html`
+            <tr key=${r.run} class=${sel === r.run ? "sel" : ""} onClick=${() => setSel(r.run)}>
+              <td class="l mono" title=${r.cipher}>${r.variant}</td>
+              <td class="l"><span class=${"pill " + (r.regime === "same-key" ? "p-same" : "p-key")}>
+                ${r.regime}</span></td>
+              <td class="l">${r.attacker}</td><td class="l">${r.dataset}</td>
+              <td>${r.nKeys}</td><td>${f(r.seenTop1)}</td>
+              <td><span class="bar"><i style=${{ width: Math.min(100, r.unseenTop1 * 100) + "%",
+                    background: VERDICT_COLOR[r.verdict] }}></i></span>${f(r.unseenTop1)}</td>
+              <td>${f(r.mismatchTop1)}</td>
+              <td>${f(r.unseenPsnr, 2)}</td><td>${f(r.floorPsnr, 2)}</td>
+              <td style=${{ color: r.gainDb > 1 ? "var(--emerald)" : r.gainDb < -0.5 ? "var(--rose)" : "" ,
+                            fontWeight: Math.abs(r.gainDb) > 1 ? 700 : 400 }}>
+                ${(r.gainDb > 0 ? "+" : "") + f(r.gainDb, 2)}</td>
+              <td>${f(r.kgg, 3)}</td><td>${r.secs}</td>
+            </tr>`)}
+        </tbody>
+      </table>
+    </div></div>
+    <p class="note"><strong>KGG</strong> is the normalised Key Generalization Gap:
+    0 means the attack transfers perfectly to unseen keys (a full key-agnostic break),
+    1 means it retains nothing (key mixing sound). <strong>Gain dB</strong> is PSNR above
+    the prior floor — the zero-information baseline.</p>
+  <//>`;
+};
+
+/* ----------------------------------------------------------- samples -- */
+const Samples = ({ data, sel, runs }) => {
+  const s = data.samples[sel];
+  const run = runs.find((r) => r.run === sel);
+  return html`
+  <${Section} id="samples" alt eyebrow="Reconstructions"
+    title="What the attacker actually produced"
+    lede=${`Do not judge these by eye. A plausible-looking image can be produced from the
+      dataset prior alone — that is exactly what the mismatch control measures. Read the
+      retrieval number, then look at the pictures.`}>
+    <div class="card rev mt2">
+      <div style=${S("display:flex;gap:14px;align-items:baseline;flex-wrap:wrap")}>
+        <h3 style=${S("font-size:15px")} class="mono">${sel || "select a run above"}</h3>
+        ${run && html`<span class=${"pill p-" + run.verdict}>${run.verdict}</span>
+          <span class="note" style=${S("margin:0")}>unseen top-1 ${f(run.unseenTop1)} ·
+            mismatch ${f(run.mismatchTop1)} · chance ${f(run.chance)}</span>`}
+      </div>
+      <div class="samples mt2">
+        ${s ? s.map((t, i) => html`
+          <div class="trip" key=${i}>
+            <img src=${t.plain} alt="plaintext" /><div class="lab">plaintext</div>
+            <img src=${t.cipher} alt="ciphertext" /><div class="lab">ciphertext</div>
+            <img src=${t.recon} alt="reconstruction" /><div class="lab">reconstruction</div>
+          </div>`)
+        : html`<div class="empty">no saved samples for this run</div>`}
+      </div>
+    </div>
+  <//>`;
+};
+
+/* ---------------------------------------------------------- findings -- */
+const FINDINGS = [
+  ["F1", "Convolution cannot express a position-dependent keystream",
+   "A chaos keystream is a pseudorandom function of absolute position; a translation-equivariant network applies the same filters everywhere. Adding coordinate channels moved same-key retrieval from 0.000 to ~1.000."],
+  ["F2", "The retrieval metric included the query in its own distractor pool",
+   "Accuracy was pinned at exactly 0.904 — which is 1−(999/1000)^99, the ceiling this bug imposes, not a property of any model. Masking self-matches restored a true 1.0 for a perfect predictor."],
+  ["F3", "Input representation must match the cipher's algebra",
+   "XOR is linear only in bit-planes; the CBC feedback term is near-linear only in pixel values. An attacker given one cannot cheaply express the other, so both are supplied."],
+  ["F4", "Smooth coordinates are a poor basis for a pseudorandom keystream",
+   "A free learnable per-position embedding gives the attacker capacity to represent an arbitrary position-dependent constant. It confers no key knowledge."],
+  ["F5", "Producer threads each built their own key pool",
+   "Silent: n_keys=k actually produced k×6 distinct keys. The key-diversity axis — the main independent variable — would have been wrong in every run."],
+  ["F6", "Entropy of an encrypted 32×32 image cannot reach 8.0",
+   "3072 samples over 256 bins cap a perfectly uniform source at 7.9407. The cipher measures 7.939, i.e. at the ceiling."],
+  ["F7", "Every configuration needs its own same-key ceiling",
+   "Otherwise 'the cipher resists' and 'this attacker cannot invert it at all' are indistinguishable."],
+  ["F8", "Plaintext redundancy is a separate resource from key recovery",
+   "Adjacent-pixel correlation is 0.0006 for noise and 0.9162 for structured images. Running the same attack on both separates cipher inversion from prior exploitation."],
+  ["F9", "An auxiliary SSIM loss drove models below the prior floor",
+   "A constant prediction has degenerate SSIM, so the term is maximally penalised and the optimiser manufactures spurious structure — PSNR fell to ~6.0 dB against an 11.1 dB floor. Switched to L1."],
+  ["F10", "Correction: convolution can invert a global pixel gather",
+   "An earlier reading held this impossible. Once the loss was fixed, ResUNet solves the key-independent permutation control completely (top-1 1.000, +13.9 dB) — the obstacle was F9, not inductive bias. The architecture difference is quantitative (+13.9 vs +15.5 dB), not categorical."],
+];
+
+const Findings = () => html`
+  <${Section} id="findings" eyebrow="Methodology"
+    title="Ten confounds that would each have faked a security result"
+    lede=${`A negative cryptanalysis result only means something if the attacker was capable
+      in the first place. Ruling these out is part of the contribution, so they are recorded
+      rather than quietly fixed — including one correction to an earlier conclusion.`}>
+    <div class="grid g2 mt2">
+      ${FINDINGS.map(([id, title, body]) => html`
+        <div class="finding rev" key=${id}>
+          <h4><span class="badge">${id}</span>${title}</h4>
+          <p>${body}</p>
+        </div>`)}
+    </div>
+  <//>`;
+
+/* ------------------------------------------------------------ status -- */
+const Status = ({ data }) => html`
+  <${Section} id="status" alt eyebrow="Reproducibility"
+    title="Experiment pipeline & verification"
+    lede="Suites run unattended across the available GPUs; this page regenerates from their outputs.">
+    <div class="grid g4 mt2">
+      ${data.pipeline.suites.map((s) => html`
+        <div class="card rev" key=${s.suite}>
+          <div class=${"ribbon rb-" + (s.state === "complete" ? "emerald"
+            : s.state === "running" ? "indigo" : "cyan")}></div>
+          <div class="k" style=${S("font-size:11.5px;font-weight:700;letter-spacing:.06em; text-transform:uppercase;color:var(--mut)")}>${s.suite}</div>
+          <div style=${S("font-size:23px;font-weight:750;margin-top:7px")}>
+            ${s.done}${s.total ? " / " + s.total : ""}</div>
+          <div class="prog"><i style=${{ width: s.total ? (100 * s.done / s.total) + "%" : "0%" }}></i></div>
+          <div class="n" style=${S("color:var(--mut);font-size:12.5px;margin-top:8px")}>${s.state}</div>
+        </div>`)}
+    </div>
+    <div class="grid g2 mt2">
+      <div class="card rev">
+        <h3 style=${S("font-size:15px")}>Automated checks
+          <span class=${"pill " + (data.tests.passed ? "p-broken" : "p-partial")}
+                style=${S("margin-left:8px")}>${data.tests.passed ? "passing" : "attention"}</span></h3>
+        <div class="note mono" style=${S("white-space:pre-wrap;font-size:11.5px;margin-top:10px")}>
+          ${data.tests.output.join("\n")}</div>
+      </div>
+      <div class="card rev">
+        <h3 style=${S("font-size:15px")}>Pipeline log</h3>
+        <div class="note mono" style=${S("white-space:pre-wrap;font-size:11.5px;margin-top:10px")}>
+          ${data.pipeline.log.length ? data.pipeline.log.join("\n") : "no entries yet"}</div>
+      </div>
+    </div>
+  <//>`;
+
+/* --------------------------------------------------------------- app -- */
+function App() {
+  const [data, setData] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    const load = () => fetch("data.json?t=" + Date.now())
+      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then((d) => { setData(d); setSel((s) => s || pickDefault(d)); })
+      .catch((e) => setErr(String(e)));
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  useReveal();
+
+  if (err) return html`<div class="boot"><p>Could not load data.json — ${err}</p>
+    <p class="note">Run <span class="mono">python3 build_web.py</span> and serve this
+    directory over HTTP (file:// blocks fetch).</p></div>`;
+  if (!data) return html`<div class="boot"><div class="boot-ring"></div><p>Loading results…</p></div>`;
+
+  return html`
+    <${Nav} generated=${data.generated} />
+    <${Hero} runs=${data.runs} />
+    <${Overview} data=${data} />
+    <${Problem} />
+    <${Datasets} data=${data} />
+    <${Cipher} data=${data} />
+    <${Method} data=${data} />
+    <${Calibration} runs=${data.runs} />
+    <${Results} runs=${data.runs} sel=${sel} setSel=${setSel} />
+    <${Samples} data=${data} sel=${sel} runs=${data.runs} />
+    <${Findings} />
+    <${Status} data=${data} />
+    <div class="footer"><div class="wrap">
+      Crynexa · key-agnostic neural cryptanalysis of chaos-based image encryption ·
+      generated ${data.generated} · all figures measured from trained models
+    </div></div>`;
+}
+
+function pickDefault(d) {
+  const withSamples = d.runs.filter((r) => d.samples[r.run]);
+  if (!withSamples.length) return null;
+  const ka = withSamples.filter((r) => r.regime === "key-agnostic");
+  const pool = ka.length ? ka : withSamples;
+  return pool.reduce((a, b) => (a.unseenTop1 > b.unseenTop1 ? a : b)).run;
+}
+
+const Overview = ({ data }) => {
+  const r = data.runs;
+  const ka = r.filter((x) => x.regime === "key-agnostic");
+  const gpuSecs = r.reduce((a, x) => a + x.secs, 0);
+  return html`
+  <${Section} id="overview" alt eyebrow="At a glance"
+    title="What was built and what was measured"
+    lede=${`A reproducible framework: a parameterised chaos cipher with an AES control, an
+      on-the-fly plaintext–ciphertext generator with correct uniform key sampling, four
+      attacker architectures, and an evaluation protocol whose controls make a null result
+      interpretable.`}>
+    <div class="grid g4 mt2">
+      <${Stat} ribbon="indigo" k="Trained models" v=${html`<${CountUp} value=${r.length} />`}
+               n="each with full controls recorded" />
+      <${Stat} ribbon="cyan" k="Key-agnostic runs" v=${html`<${CountUp} value=${ka.length} />`}
+               n="unlimited key diversity — every test key unseen" />
+      <${Stat} ribbon="emerald" k="Cipher configs" cls="ok"
+               v=${html`<${CountUp} value=${new Set(r.map((x) => x.cipher)).size} />`}
+               n="structural variants measured" />
+      <${Stat} ribbon="amber" k="Compute" v=${html`<${CountUp} value=${gpuSecs / 60} decimals=${0} suffix=" min" />`}
+               n="total GPU training time across all runs" />
+    </div>
+  <//>`;
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);

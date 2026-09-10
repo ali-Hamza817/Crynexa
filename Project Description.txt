@@ -1,0 +1,777 @@
+Key-Agnostic Neural Cryptanalysis of Chaos-Based Image Encryption Under Unseen Keys
+Core idea
+
+Train a neural network on plaintext–ciphertext image pairs generated using multiple secret keys, then investigate whether the network can learn the underlying structural weaknesses of a chaos-based encryption scheme and reconstruct plaintext images from ciphertexts generated with completely unseen keys.
+
+The important novelty is not merely neural decryption.
+
+The thesis asks:
+
+Does a deep-learning model learn the encryption transformation itself, rather than memorizing a particular secret key?
+
+That gives you a much stronger master's research problem.
+
+1. The complete concept
+
+Your system will have this pipeline:
+
+                 TRAINING PHASE
+
+Plain Images
+     │
+     ▼
+┌──────────────────────────┐
+│ Chaos-Based Encryption   │
+│                          │
+│ Key K1                   │
+│ Key K2                   │
+│ Key K3                   │
+│ ...                      │
+│ Key Kn                   │
+└────────────┬─────────────┘
+             │
+             ▼
+       Cipher Images
+             │
+             │
+   ┌─────────┴─────────┐
+   │                   │
+Plain Image        Cipher Image
+   │                   │
+   └─────────┬─────────┘
+             │
+             ▼
+      Neural Network
+       U-Net / CNN
+             │
+             ▼
+      Reconstructed
+       Plain Image
+
+But your real experiment is:
+
+TRAIN:
+Keys K1 ─ K80
+
+TEST:
+Completely unseen keys
+K81 ─ K100
+
+If the network can reconstruct the plaintext under unseen keys, you have evidence that it learned key-independent structural information about the cryptosystem.
+
+2. Why this is substantially better than the attached idea
+
+The attached proposal says essentially:
+
+plaintext + ciphertext pairs → train CNN → learn mapping → reconstruct unseen ciphertext.
+
+That is already very close to the 2019 work, which demonstrated an end-to-end, key-independent deep-learning attack against chaos-based image encryption and tested static/dynamic key scenarios.
+
+And a 2025 publication has gone further by applying a DL known-plaintext attack to three chaos-based encryption algorithms using CNN/U-Net-style approaches.
+
+Therefore, your thesis should move from:
+
+"Can CNN break chaos encryption?"
+
+to:
+
+"Under what conditions can neural cryptanalysis generalize across unseen secret keys and different encryption configurations?"
+
+That is a much better research question.
+
+3. Proposed thesis title
+
+My preferred title is:
+
+Key-Agnostic Neural Cryptanalysis of Chaos-Based Image Encryption Under Unseen Secret Keys
+
+Alternative academic title:
+
+Learning the Inverse of Chaos-Based Image Encryption: A Key-Agnostic Deep Neural Cryptanalysis Framework
+
+I prefer the first one because it immediately communicates:
+
+cryptanalysis
+machine learning
+chaos-based encryption
+unseen keys
+key-agnostic attack
+4. Research problem
+
+Chaos-based image encryption schemes often rely on chaotic maps to produce permutation/diffusion sequences that obscure image structure.
+
+The fundamental question is whether these transformations are genuinely resistant to data-driven cryptanalysis.
+
+Instead of explicitly estimating the secret key, your proposed framework treats the encryption algorithm as a black-box transformation:
+
+$$ C = E_K(P) $$
+
+where:
+
+\(P\) = plaintext image
+\(K\) = secret key
+\(E_K\) = chaos-based encryption
+\(C\) = ciphertext
+
+Your neural attacker learns an approximation:
+
+$$ \hat P = F_\theta(C) $$
+
+The critical experiment is:
+
+$$ K_{train} \cap K_{test} = \emptyset $$
+
+Therefore:
+
+The model has never seen the test keys during training.
+
+If:
+
+$$ \hat P \approx P $$
+
+for unseen keys, that demonstrates cross-key cryptanalytic generalization.
+
+5. The actual research novelty
+
+I would make the thesis revolve around three levels of generalization.
+
+Level 1 — Same-key attack
+
+Train and test using the same key family.
+
+This establishes your baseline.
+
+Level 2 — Unseen-key attack
+
+Train:
+
+K1–K80
+
+Test:
+
+K81–K100
+
+This is your primary experiment.
+
+Level 3 — Unseen encryption configuration
+
+Train on:
+
+Logistic Map
+
+and test on:
+
+Tent Map
+
+or another chaos-map configuration.
+
+This becomes substantially more interesting.
+
+6. Your final framework
+
+I would call the research prototype:
+
+NeuroChaosBreak
+
+A neural cryptanalysis framework for evaluating the resistance of chaos-based image encryption.
+
+Architecture:
+
+                    NeuroChaosBreak
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+ Encryption Engine   Dataset Generator   Attack Engine
+        │                  │                  │
+        │                  │                  │
+ Chaos Maps          Plain Images       CNN/U-Net
+        │                  │                  │
+ Logistic            Pair Generator     Residual U-Net
+ Tent                Key Generator     Attention U-Net
+ Henon               Metadata           Autoencoder
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           ▼
+                    Evaluation Engine
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+           PSNR           SSIM          MSE
+             │             │             │
+             └─────────────┼─────────────┘
+                           ▼
+                  Cryptanalysis Report
+
+This gives you an actual research product/framework, not just a trained model.
+
+7. Encryption methodology
+
+I recommend implementing one primary chaos encryption algorithm yourself, rather than depending on someone else's implementation.
+
+For example:
+
+Phase 1 — Logistic map
+$$ x_{n+1}=r x_n(1-x_n) $$
+
+where:
+
+$$ x_0 \in (0,1), \qquad r \approx 4 $$
+
+Generate a chaotic sequence.
+
+Then implement:
+
+Confusion / permutation
+
+Rearrange pixels according to the chaotic sequence.
+
+Diffusion
+
+Modify pixel values using the generated chaotic sequence.
+
+Conceptually:
+
+Plain Image
+     │
+     ▼
+Pixel permutation
+     │
+     ▼
+Chaotic diffusion
+     │
+     ▼
+Cipher Image
+
+This gives you complete control over:
+
+key generation
+permutation
+diffusion
+key sensitivity
+chaotic map
+encryption parameters
+8. VERY IMPORTANT: don't call the neural network "decryption"
+
+Scientifically, I would describe it as:
+
+neural cryptanalysis / learned ciphertext-to-plaintext reconstruction
+
+rather than conventional decryption.
+
+Because your model does not necessarily recover the cryptographic key.
+
+It learns an approximation:
+
+$$ F_\theta(C) \rightarrow P $$
+
+This distinction will make your thesis much more defensible.
+
+9. Dataset strategy
+
+You don't need a special "encrypted image dataset."
+
+This is actually one of the strengths of your research.
+
+You generate your own paired dataset:
+
+Original Dataset
+       │
+       ▼
+Plain Image
+       │
+       ▼
+Chaos Encryption
+       │
+       ├── Key 001 → Cipher 001
+       ├── Key 002 → Cipher 002
+       ├── Key 003 → Cipher 003
+       └── Key 004 → Cipher 004
+
+Therefore:
+
+Your research dataset is a generated plaintext–ciphertext paired dataset.
+
+10. Best dataset choice
+Primary: CIFAR-10
+
+I strongly recommend starting with CIFAR-10.
+
+It contains:
+
+60,000 images
+32×32 RGB
+50,000 training
+10,000 test
+10 classes
+
+This makes experimentation very manageable on a normal research laptop.
+
+CIFAR-10 dataset on Kaggle
+
+You can generate:
+
+50,000 × multiple keys
+
+which gives you hundreds of thousands of plaintext-ciphertext examples without needing a massive raw image dataset.
+
+11. Second dataset for external validation
+STL-10
+
+STL-10 is particularly useful because the images are 96×96 RGB, providing a different resolution/distribution from CIFAR-10. It has 5,000 labeled training images, 8,000 test images, and 100,000 unlabeled images.
+
+STL-10 dataset documentation
+
+This lets you test:
+
+Does the attack work only on CIFAR-10, or does it generalize to a different image distribution?
+
+12. Third dataset — high-resolution validation
+
+For a stronger final experiment:
+
+DIV2K
+
+DIV2K contains high-quality 2K images and has 800 training and 100 validation images in the commonly used benchmark configuration.
+
+DIV2K official dataset
+
+You don't need to train on the full-resolution images.
+
+Take random:
+
+128×128
+256×256
+
+patches.
+
+That gives you a much stronger evaluation:
+
+CIFAR-10 → development
+STL-10   → cross-dataset validation
+DIV2K    → high-resolution validation
+13. Exact dataset construction
+
+Suppose you start with 50,000 CIFAR-10 training images.
+
+For every plaintext image:
+
+P_i
+
+generate encryption under multiple keys:
+
+E(P_i,K1)
+E(P_i,K2)
+E(P_i,K3)
+...
+E(P_i,K10)
+
+You therefore get:
+
+P_i → C_i1
+P_i → C_i2
+P_i → C_i3
+...
+P_i → C_i10
+
+Potential dataset:
+
+500,000 ciphertext samples.
+
+But don't necessarily need all of them initially.
+
+14. The most important experimental design
+
+Create explicit key partitions.
+
+Training
+K001 – K070
+Validation
+K071 – K080
+Test
+K081 – K100
+
+The test keys must never appear during training.
+
+This prevents the biggest methodological problem in this research:
+
+the network simply memorizing the mapping associated with particular keys.
+
+15. Four experiments
+
+Your thesis can have four core experiments.
+
+Experiment A — Same-key
+Train: K1
+Test:  K1
+
+Purpose:
+
+Establish whether the architecture can learn the inverse mapping.
+
+Experiment B — Cross-key
+Train: K1–K70
+Test: K71–K100
+
+This is your main experiment.
+
+Experiment C — Cross-map
+
+Train:
+
+Logistic Map
+
+Test:
+
+Tent Map
+
+This tests whether the learned attack is tied to a specific chaos map.
+
+Experiment D — Cross-dataset
+
+Train:
+
+CIFAR-10
+
+Test:
+
+STL-10 / DIV2K
+
+This tests whether the model is learning:
+
+encryption weaknesses
+
+or merely:
+
+image statistics.
+
+That distinction is scientifically important.
+
+16. Models to compare
+
+Don't use only one CNN.
+
+Use a controlled model comparison.
+
+Baseline 1
+
+Simple CNN encoder-decoder.
+
+Cipher
+ ↓
+Conv
+ ↓
+Conv
+ ↓
+Conv
+ ↓
+Decoder
+ ↓
+Plain
+Baseline 2
+
+Autoencoder.
+
+Proposed Model
+Residual U-Net
+                    Ciphertext
+                        │
+                ┌───────▼───────┐
+                │ Encoder Block  │
+                └───────┬───────┘
+                        │
+                ┌───────▼───────┐
+                │ Encoder Block  │
+                └───────┬───────┘
+                        │
+                   Bottleneck
+                        │
+                ┌───────▼───────┐
+                │ Decoder Block  │
+                └───────┬───────┘
+                        │
+                   Skip Connections
+                        │
+                        ▼
+                 Plain Reconstruction
+
+U-Net is especially appropriate because the task is image-to-image reconstruction, and prior work has already demonstrated this general family of architectures in neural cryptanalysis.
+
+17. Loss function
+
+I would not rely solely on MSE.
+
+Use a combined reconstruction objective:
+
+$$ L = \lambda_1 L_{MSE} + \lambda_2 L_{SSIM} + \lambda_3 L_{perceptual} $$
+
+where:
+
+MSE → pixel accuracy
+SSIM → structural similarity
+perceptual loss → visual feature similarity
+
+For your master's thesis, this gives you a strong methodological component.
+
+18. Evaluation metrics
+
+You should report:
+
+Reconstruction
+MSE
+MAE
+PSNR
+SSIM
+Cryptanalysis
+reconstruction accuracy
+attack success rate
+key generalization gap
+cross-map generalization
+Security analysis
+
+Compare:
+
+Original plaintext
+Encrypted image
+Neural reconstruction
+
+and calculate standard encryption-security indicators such as:
+
+entropy
+correlation coefficients
+NPCR
+UACI
+
+The key point is that these traditional metrics characterize the ciphertext, while your neural attack measures learned recoverability.
+
+19. Your most important metric
+
+I would introduce:
+
+Key Generalization Gap (KGG)
+
+Define:
+
+$$ KGG = Performance_{seen\ keys} - Performance_{unseen\ keys} $$
+
+For example:
+
+PSNR
+
+Seen keys       = 31.2 dB
+Unseen keys     = 26.8 dB
+
+KGG             = 4.4 dB
+
+This gives your thesis a clean quantitative way to answer:
+
+How much does neural cryptanalysis degrade when the attacker encounters an unseen key?
+
+That is much more interesting than simply reporting PSNR.
+
+20. Even better: attack success curve
+
+Generate:
+
+Number of known plaintext-ciphertext pairs
+                │
+                ▼
+          Attack quality
+
+For example:
+
+10 pairs       → weak reconstruction
+100 pairs      → moderate
+1,000 pairs    → good
+10,000 pairs   → strong
+50,000 pairs   → strong
+
+This allows you to answer:
+
+How much known plaintext does an attacker need before the neural model becomes effective?
+
+That turns your project into an actual cryptanalysis study, rather than a computer-vision project.
+
+21. Your research questions
+
+I recommend exactly these three RQs.
+
+RQ1
+
+Can a deep neural network learn to reconstruct plaintext images from ciphertexts produced by a chaos-based image encryption scheme without explicitly recovering the secret key?
+
+RQ2
+
+How effectively does the learned cryptanalytic model generalize to ciphertexts generated using previously unseen secret keys?
+
+RQ3
+
+How does the effectiveness of neural cryptanalysis change across different chaos maps, image distributions, and amounts of known plaintext-ciphertext data?
+
+These are strong master's-level questions.
+
+22. Research hypotheses
+H1
+
+A deep neural network can reconstruct meaningful approximations of plaintext images from chaos-based ciphertexts.
+
+H2
+
+A model trained across diverse keys can generalize to unseen keys, indicating that it has learned structural properties of the encryption transformation rather than merely memorizing keys.
+
+H3
+
+Attack performance decreases as the cryptosystem's configuration changes, providing a measurable estimate of the attack's transferability.
+
+23. Complete methodology
+
+Your thesis methodology becomes:
+
+                    Literature Review
+                           │
+                           ▼
+              Select Chaos Encryption
+                           │
+                           ▼
+                Implement Encryption
+                           │
+                           ▼
+                 Generate Secret Keys
+                           │
+                           ▼
+             Generate Plain/Cipher Pairs
+                           │
+                           ▼
+                Dataset Construction
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+        Seen-Key Dataset          Unseen-Key Dataset
+              │                         │
+              └────────────┬────────────┘
+                           ▼
+                 Neural Cryptanalysis
+                           │
+             ┌─────────────┼──────────────┐
+             ▼             ▼              ▼
+          CNN          Autoencoder     U-Net
+             │             │              │
+             └─────────────┼──────────────┘
+                           ▼
+                    Model Training
+                           │
+                           ▼
+                 Unseen-Key Evaluation
+                           │
+                           ▼
+                  Cross-Map Evaluation
+                           │
+                           ▼
+                 Cross-Dataset Testing
+                           │
+                           ▼
+                  Security Evaluation
+                           │
+                           ▼
+                 Statistical Analysis
+                           │
+                           ▼
+                  Cryptanalysis Report
+24. What you actually build
+
+Your final master's product should be:
+
+NeuroChaosBreak
+
+A web/desktop research framework where a researcher can select:
+
+Encryption Algorithm
+       ↓
+Chaos Map
+       ↓
+Key Configuration
+       ↓
+Dataset
+       ↓
+Attack Model
+       ↓
+Training Configuration
+
+and obtain:
+
+Cipher Image
+      ↓
+Neural Attack
+      ↓
+Recovered Image
+      ↓
+Attack Metrics
+      ↓
+Security Assessment
+
+The final UI could show:
+
+Metric	Result
+PSNR	28.43 dB
+SSIM	0.91
+MSE	0.0018
+Entropy	7.96
+Key Generalization Gap	3.17 dB
+Attack Success	82.4%
+25. Your thesis contribution
+
+Your contribution would be fourfold:
+
+Contribution 1
+
+A reproducible chaos-based image encryption and plaintext–ciphertext dataset generator.
+
+Contribution 2
+
+A neural cryptanalysis framework for key-independent ciphertext-to-plaintext reconstruction.
+
+Contribution 3
+
+A systematic unseen-key generalization evaluation protocol.
+
+Contribution 4
+
+An empirical analysis of how attack effectiveness changes with:
+
+key diversity
+known plaintext volume
+chaos map
+architecture
+image distribution
+
+That is enough for a solid master's thesis.
+
+26. What I would NOT do
+
+I would not make the thesis:
+
+"Using CNN to decrypt chaos-based encrypted images."
+
+Too generic.
+
+I would also avoid:
+
+"Comparison of CNN and U-Net for chaos image decryption."
+
+Too engineering-oriented.
+
+And avoid:
+
+"AI-based attack on image encryption."
+
+Too broad.
+
+Your strongest positioning is:
+
+Key-agnostic neural cryptanalysis + unseen-key generalization.
+
+27. The research gap in one sentence
+
+This is the sentence I would use when explaining the thesis to your supervisor:
+
+Existing deep-learning attacks demonstrate that neural networks can reconstruct plaintext from chaos-encrypted images, but my thesis investigates whether such attacks genuinely learn key-independent structural weaknesses by systematically evaluating generalization to secret keys and encryption configurations that were never observed during training.
