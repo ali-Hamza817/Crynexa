@@ -88,6 +88,9 @@ const Nav = ({ generated }) => html`
     <div class="wrap">
       <div class="brand"><span class="dot"></span>Crynexa</div>
       <nav>${NAV.map(([id, l]) => html`<a key=${id} href=${"#" + id}>${l}</a>`)}</nav>
+      <a href="explain.html" class="pill p-key"
+         style=${S("margin-left:10px;text-decoration:none;font-size:12px;padding:6px 12px")}>
+        Plain-English one-pager ↗</a>
       <div class="live"><span class="pulse"></span>${generated}</div>
     </div>
   </div>`;
