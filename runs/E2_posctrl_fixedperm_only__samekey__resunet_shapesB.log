@@ -1,0 +1,108 @@
+[E2_posctrl_fixedperm_only__samekey__resunet_shapesB] step   1000 loss 0.0567 | SEEN psnr  20.68 top1@100 0.999 | UNSEEN psnr  20.56 top1@100 0.999 | floor 11.09
+[E2_posctrl_fixedperm_only__samekey__resunet_shapesB] step   2000 loss 0.0373 | SEEN psnr  23.52 top1@100 1.000 | UNSEEN psnr  23.44 top1@100 1.000 | floor 11.09
+[E2_posctrl_fixedperm_only__samekey__resunet_shapesB] step   3000 loss 0.0268 | SEEN psnr  25.00 top1@100 1.000 | UNSEEN psnr  24.96 top1@100 1.000 | floor 11.09
+[E2_posctrl_fixedperm_only__samekey__resunet_shapesB] step   4000 loss 0.0210 | SEEN psnr  25.74 top1@100 1.000 | UNSEEN psnr  25.67 top1@100 1.000 | floor 11.09
+[E2_posctrl_fixedperm_only__samekey__resunet_shapesB] step   5000 loss 0.0193 | SEEN psnr  25.89 top1@100 1.000 | UNSEEN psnr  25.81 top1@100 1.000 | floor 11.09
+{
+  "config": {
+    "name": "E2_posctrl_fixedperm_only__samekey__resunet_shapesB",
+    "cipher": {
+      "name": "chaos",
+      "map": "logistic",
+      "rounds": 1,
+      "mode": "permute_only",
+      "perm_scope": "full2d",
+      "perm_keyed": false,
+      "feedback": "none",
+      "precision": "float64"
+    },
+    "dataset": "shapes",
+    "eval_dataset": null,
+    "model": "resunet",
+    "model_kw": {},
+    "n_keys": 1,
+    "batch_size": 256,
+    "steps": 5000,
+    "lr": 0.0002,
+    "warmup_steps": 200,
+    "eval_n": 2000,
+    "eval_every": 1000,
+    "seed": 0,
+    "device": "cuda:0",
+    "workers": 6,
+    "input_repr": "both",
+    "coords": true,
+    "prev_ch": true,
+    "out_mode": "regress",
+    "train_subset": null,
+    "loss": "l1",
+    "amp": true
+  },
+  "cipher_tag": "logistic_r1_permute_only_full2d_fixedperm_none_float64",
+  "n_params": 27188675,
+  "floor": {
+    "psnr": 11.090311050415039,
+    "ssim": 0.5391724705696106,
+    "mse": 0.0847492590546608,
+    "mae": 0.25266262888908386,
+    "top1_pool10": 0.0982,
+    "chance_pool10": 0.1,
+    "top1_pool100": 0.010175,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 0.001375,
+    "chance_pool1000": 0.001
+  },
+  "seen": {
+    "psnr": 25.889963150024414,
+    "ssim": 0.9143200516700745,
+    "mse": 0.003206921275705099,
+    "mae": 0.023023445159196854,
+    "top1_pool10": 1.0,
+    "chance_pool10": 0.1,
+    "top1_pool100": 1.0,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 1.0,
+    "chance_pool1000": 0.001
+  },
+  "unseen": {
+    "psnr": 25.81450843811035,
+    "ssim": 0.9141256213188171,
+    "mse": 0.0032628043554723263,
+    "mae": 0.02321067824959755,
+    "top1_pool10": 1.0,
+    "chance_pool10": 0.1,
+    "top1_pool100": 1.0,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 1.0,
+    "chance_pool1000": 0.001
+  },
+  "mismatch_control": {
+    "psnr": 8.159317970275879,
+    "ssim": 0.34453290700912476,
+    "mse": 0.16890744864940643,
+    "mae": 0.33599618077278137,
+    "top1_pool10": 0.098275,
+    "chance_pool10": 0.1,
+    "top1_pool100": 0.00985,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 0.00215,
+    "chance_pool1000": 0.001
+  },
+  "gain_over_floor_unseen": {
+    "psnr_gain_db": 14.724197387695312,
+    "ssim_gain": 0.37495315074920654,
+    "top1_pool10_gain": 0.9018,
+    "top1_pool100_gain": 0.989825,
+    "top1_pool1000_gain": 0.998625
+  },
+  "gain_over_floor_seen": {
+    "psnr_gain_db": 14.799652099609375,
+    "ssim_gain": 0.37514758110046387,
+    "top1_pool10_gain": 0.9018,
+    "top1_pool100_gain": 0.989825,
+    "top1_pool1000_gain": 0.998625
+  },
+  "kgg_psnr": 0.005098411192791084,
+  "kgg_top1_100": 0.0,
+  "train_seconds": 663.2256700992584
+}

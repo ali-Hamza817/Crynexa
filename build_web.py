@@ -112,7 +112,26 @@ def collect_runs():
                 samples[c["name"]] = cached_samples(c["name"], npz)
             except Exception:
                 pass
+    attach_ceilings(rows)
     return rows, samples
+
+
+def attach_ceilings(rows):
+    """Join each key-agnostic run to its same-key twin.
+
+    A key-agnostic number is uninterpretable alone: "the cipher resists" and
+    "this attacker cannot invert it at all" look identical. The same-key
+    ceiling is what separates them, so it travels with every row.
+    """
+    ceil = {(r["variant"], r["attacker"], r["dataset"]): r["seenTop1"]
+            for r in rows if r["regime"] == "same-key"}
+    for r in rows:
+        c = ceil.get((r["variant"], r["attacker"], r["dataset"]))
+        r["ceiling"] = c
+        valid = c is not None and c >= 0.05
+        r["ceilingValid"] = valid
+        if r["regime"] == "key-agnostic" and not valid:
+            r["verdict"] = "no-info"
 
 
 # -------------------------------------------------------------- datasets --
@@ -187,6 +206,121 @@ ATTACKERS = {
 }
 
 
+def derived(rows):
+    """Analysis computed from the runs, so the narrative can never go stale."""
+    ka = [r for r in rows if r["regime"] == "key-agnostic"]
+
+    # --- key-diversity curves (E1) -------------------------------------
+    curves = {}
+    for r in rows:
+        if r["suite"] != "E1":
+            continue
+        k = f'{r["dataset"]} · {r["attacker"]}'
+        n = r["nKeys"]
+        curves.setdefault(k, []).append({
+            "nKeys": 10 ** 9 if n == "unlimited" else int(n),
+            "label": "unlim" if n == "unlimited" else str(n),
+            "seen": r["seenTop1"], "unseen": r["unseenTop1"],
+            "chance": r["chance"],
+        })
+    for k in curves:
+        curves[k].sort(key=lambda x: x["nKeys"])
+
+    # --- mechanism: does keyed diffusion alone carry the security? ------
+    mech = []
+    for ds in sorted({r["dataset"] for r in ka}):
+        for att in sorted({r["attacker"] for r in ka}):
+            a = next((r for r in ka if r["variant"] == "posctrl_fixedperm_only"
+                      and r["dataset"] == ds and r["attacker"] == att), None)
+            b = next((r for r in ka if r["variant"] == "fixedperm_keyed_diff"
+                      and r["dataset"] == ds and r["attacker"] == att), None)
+            if a and b:
+                mech.append({"dataset": ds, "attacker": att,
+                             "noDiffusion": a["unseenTop1"],
+                             "keyedDiffusion": b["unseenTop1"],
+                             "chance": a["chance"]})
+
+    # --- leaderboard of key-agnostic leaks ------------------------------
+    leaks = sorted([r for r in ka if r["ceilingValid"]],
+                   key=lambda r: -r["unseenTop1"])
+
+    # --- axes measured to have no effect --------------------------------
+    def group(pred):
+        g = [r for r in ka if r["ceilingValid"] and pred(r["variant"])]
+        return {"n": len(g),
+                "min": min((r["unseenTop1"] for r in g), default=None),
+                "max": max((r["unseenTop1"] for r in g), default=None)}
+    axes = {
+        "rounds 1–4": group(lambda v: v.startswith("rounds")),
+        "permutation scope (with diffusion)":
+            group(lambda v: v in ("scope_rowcol", "scope_blockwise64")),
+        "keystream precision float32": group(lambda v: v == "float32"),
+        "diffusion alone": group(lambda v: v == "diffuse_only_r1"),
+    }
+
+    return {"curves": curves, "mechanism": mech,
+            "leaks": [{k: r[k] for k in
+                       ("variant", "dataset", "attacker", "ceiling", "unseenTop1",
+                        "mismatchTop1", "chance", "gainDb", "verdict", "run")}
+                      for r in leaks],
+            "axes": axes,
+            "counts": {"total": len(rows), "keyAgnostic": len(ka),
+                       "validCeiling": sum(1 for r in ka if r["ceilingValid"]),
+                       "broken": sum(1 for r in ka if r["verdict"] == "broken"),
+                       "partial": sum(1 for r in ka if r["verdict"] == "partial"),
+                       "noInfo": sum(1 for r in ka if r["verdict"] == "no-info")}}
+
+
+RESEARCH = [
+    {"id": "RQ1",
+     "q": "Can a network reconstruct plaintext from chaos-based ciphertext without "
+          "recovering the key, and how much of any reconstruction is the learned "
+          "image prior rather than cryptanalytic information?",
+     "a": "Yes, but only where the cipher retains key-independent structure. Every "
+          "reported gain is measured against a prior floor and a mismatch control, "
+          "and all mismatch controls sit at chance — so the leaks below are "
+          "cryptanalytic, not hallucination.",
+     "verdict": "answered"},
+    {"id": "RQ2",
+     "q": "Does a model trained across a large key population acquire key-independent "
+          "knowledge, i.e. does it generalise to unseen keys?",
+     "a": "No, in the zero-shot setting. Unseen-key retrieval is pinned at chance for "
+          "every key-diversity level from 1 key to unlimited, on both datasets and "
+          "both attackers. The same models memorise up to ~16 keys at 0.98, so this "
+          "is not a capacity or training artifact.",
+     "verdict": "answered — negative"},
+    {"id": "RQ3",
+     "q": "Which structural properties of a chaos cipher govern resistance to neural "
+          "cryptanalysis?",
+     "a": "Permutation scope governs the leak; keyed diffusion eliminates it. Round "
+          "count and keystream precision have no measurable effect. Attack success "
+          "also depends on attacker inductive bias (0.221 vs 0.087 on one cipher).",
+     "verdict": "answered"},
+]
+
+CONTRIBUTIONS = [
+    ("Parameterised chaos-cipher testbed",
+     "Eight independent structural knobs plus an AES-CTR control behind one "
+     "interface. 576/576 configurations verified to round-trip exactly; the "
+     "reference configuration meets published NPCR/UACI/entropy targets."),
+    ("An evaluation protocol that makes null results interpretable",
+     "Retrieval as the primary metric, plus five controls: prior floor, mismatch, "
+     "AES negative, key-independent positive, and a per-configuration same-key "
+     "ceiling. Without the ceiling, 'resists' and 'attacker incapable' are "
+     "indistinguishable."),
+    ("A measured map of which cipher properties confer resistance",
+     "Permutation scope leaks; keyed diffusion masks it entirely; rounds and "
+     "keystream precision do not matter — each backed by a same-key ceiling."),
+    ("A dose–response key-generalisation result",
+     "The key-diversity curve separates memorisation capacity from generalisation "
+     "and shows the latter is exactly zero at every level."),
+    ("Twelve documented methodological confounds",
+     "Each would have manufactured a false security result; all are recorded with "
+     "the measurement that exposed them, including two corrections to earlier "
+     "conclusions."),
+]
+
+
 def cipher_stats():
     f = ROOT / "reports" / "cipher_stats.json"
     if not f.is_file():
@@ -202,25 +336,47 @@ def cipher_stats():
 
 
 def pipeline_status():
+    """Count COMPLETED runs from result.json on disk.
+
+    Counting "rc=" lines in a sweep log over-counts: logs are appended across
+    restarts, so a resumed sweep double-counts runs it skipped. The result
+    directories are the ground truth.
+    """
+    import sweep as sw
+
     log = RUNS / "pipeline.log"
     lines = log.read_text().strip().splitlines() if log.is_file() else []
+
+    specs = [
+        ("E1 · CIFAR-10", sw.suite_E1, "_cifar",
+         "key-diversity curve on natural images"),
+        ("E2 · CIFAR-10", sw.suite_E2, "_cifar",
+         "cipher-strength sweep on natural images"),
+        ("E1 · shapes", sw.suite_E1, "_shapesB",
+         "key-diversity curve on synthetic structured images"),
+        ("E2 · shapes", sw.suite_E2, "_shapesB",
+         "cipher-strength sweep on synthetic structured images"),
+    ]
     suites = []
-    for tag, f in [("E2 · shapes", "sweep_E2_shapes.log"),
-                   ("E1 · CIFAR-10", "sweep_E1_cifar.log"),
-                   ("E2 · CIFAR-10", "sweep_E2_cifar.log"),
-                   ("E1 · shapes", "sweep_E1_shapes.log")]:
-        p = RUNS / f
-        if not p.is_file():
-            suites.append({"suite": tag, "done": 0, "total": None, "state": "queued"})
-            continue
-        t = p.read_text()
-        done = t.count("rc=")
-        total = None
-        for ln in t.splitlines():
-            if ln.startswith("suite ") and " runs on" in ln:
-                total = int(ln.split(":")[1].split("runs")[0].strip())
-        state = "complete" if "DONE " in t else "running"
-        suites.append({"suite": tag, "done": done, "total": total, "state": state})
+    for tag, fn, suffix, desc in specs:
+        names = [c["name"] + suffix for c in fn()]
+        done = sum(1 for n in names if (RUNS / n / "result.json").is_file())
+        total = len(names)
+        suites.append({
+            "suite": tag, "done": done, "total": total, "desc": desc,
+            "state": "complete" if done >= total else
+                     "running" if done else "queued",
+        })
+
+    # superseded first pass, kept for provenance
+    legacy = [d.name for d in RUNS.glob("E2_*_shapes")
+              if (d / "result.json").is_file()]
+    if legacy:
+        suites.append({
+            "suite": "E2 · shapes (CBC baseline, superseded)",
+            "done": len(legacy), "total": len(legacy), "state": "complete",
+            "desc": "first pass, before the baseline cipher was corrected",
+        })
     return {"log": lines[-12:], "suites": suites}
 
 
@@ -259,6 +415,9 @@ def main():
         "metricCheck": METRIC_CHECK,
         "attackers": ATTACKERS,
         "cipherStats": cipher_stats(),
+        "derived": derived(rows),
+        "research": RESEARCH,
+        "contributions": CONTRIBUTIONS,
         "pipeline": pipeline_status(),
         "tests": tests_status(),
     }

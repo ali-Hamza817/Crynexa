@@ -191,3 +191,6 @@ input:focus,select:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 
   .hero-grid{grid-template-columns:1fr;gap:34px}
   section{padding:60px 0}
 }
+.p-no-info{background:#eef1f7;color:#8a94a6;font-style:italic}
+.controls button.pill{transition:.16s}
+.controls button.pill:hover{filter:brightness(.95)}

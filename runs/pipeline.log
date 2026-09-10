@@ -1,0 +1,17 @@
+[13:19:58] waiting for E2/shapes to finish
+[14:47:29] E2/shapes done
+[14:47:29] waiting for CIFAR test shard
+[14:47:31] CIFAR ready
+[14:47:31] E1 cifar (key-diversity curve) starting
+[15:03:06] E1 cifar (key-diversity curve) starting
+[15:40:02] E1 cifar done
+[15:40:02] E2 cifar (cipher-strength sweep) starting
+[16:15:54] E2 cifar10 starting (gpus 0,2,1)
+[17:45:25] E2 cifar10 done
+[17:45:25] E2 shapes starting (gpus 0,2,1)
+[19:22:39] E2 shapes done
+[19:22:39] E1 shapes starting (gpus 0,2,1)
+[19:41:50] E1 shapes done
+[19:41:50] E1 cifar10 starting (gpus 0,2,1)
+[19:41:50] E1 cifar10 done
+[19:41:51] PIPELINE COMPLETE

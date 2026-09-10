@@ -7,23 +7,36 @@ __pycache__/
 venv/
 env/
 
-# Data, generated corpora, model artifacts, run outputs
+# Datasets — downloaded by the code, never committed
+data_cache/
 data/
 datasets/
-data_cache/
-ciphertexts/
-checkpoints/
-runs/
-outputs/
-wandb/
+
+# Model weights (19 GB across 223 runs; far past GitHub's 100 MB file limit).
+# Every run is reproducible from its config: see runs/<name>/result.json.
 *.pt
 *.pth
 *.ckpt
 *.h5
 *.hdf5
-*.lmdb
-*.npy
+
+# Per-run sample tensors — regenerate with the run, or read them from
+# web/data.json which carries the rendered PNGs.
 *.npz
+*.npy
+
+# Regenerable build products
+reports/sample_cache/
+reports/dashboard.html
+web/dashboard.html
+reports/tests_cache.json
+
+# Run outputs: keep the RESULTS and provenance logs, drop everything else.
+runs/*
+!runs/*/
+runs/*/*
+!runs/*/result.json
+!runs/*.log
 
 # Secrets
 .env
@@ -35,4 +48,3 @@ wandb/
 Thumbs.db
 .idea/
 .vscode/
-*.log

@@ -1,0 +1,252 @@
+{
+  "config": {
+    "name": "E2_rounds2__keyagnostic__linearmixer_shapesB",
+    "cipher": {
+      "name": "chaos",
+      "map": "logistic",
+      "rounds": 2,
+      "mode": "permute_diffuse",
+      "perm_scope": "full2d",
+      "perm_keyed": true,
+      "feedback": "none",
+      "precision": "float64"
+    },
+    "dataset": "shapes",
+    "eval_dataset": null,
+    "model": "linearmixer",
+    "model_kw": {
+      "pos_embed": 0
+    },
+    "n_keys": null,
+    "batch_size": 256,
+    "steps": 5000,
+    "lr": 0.0005,
+    "warmup_steps": 200,
+    "eval_n": 2000,
+    "eval_every": 1000,
+    "seed": 0,
+    "device": "cuda:0",
+    "workers": 6,
+    "input_repr": "pixel",
+    "coords": false,
+    "prev_ch": true,
+    "out_mode": "regress",
+    "train_subset": null,
+    "loss": "l1",
+    "amp": true
+  },
+  "cipher_tag": "logistic_r2_permute_diffuse_full2d_keyed_none_float64",
+  "n_params": 18906403,
+  "floor": {
+    "psnr": 11.090311050415039,
+    "ssim": 0.5391724705696106,
+    "mse": 0.0847492590546608,
+    "mae": 0.25266262888908386,
+    "top1_pool10": 0.0982,
+    "chance_pool10": 0.1,
+    "top1_pool100": 0.010175,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 0.001375,
+    "chance_pool1000": 0.001
+  },
+  "seen": {
+    "psnr": 11.201644897460938,
+    "ssim": 0.5479023456573486,
+    "mse": 0.08284412324428558,
+    "mae": 0.24865752458572388,
+    "top1_pool10": 0.1036,
+    "chance_pool10": 0.1,
+    "top1_pool100": 0.0107,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 0.0008,
+    "chance_pool1000": 0.001
+  },
+  "unseen": {
+    "psnr": 11.090296745300293,
+    "ssim": 0.5380297303199768,
+    "mse": 0.08474773913621902,
+    "mae": 0.25264793634414673,
+    "top1_pool10": 0.099,
+    "chance_pool10": 0.1,
+    "top1_pool100": 0.008425,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 0.00105,
+    "chance_pool1000": 0.001
+  },
+  "mismatch_control": {
+    "psnr": 11.0886812210083,
+    "ssim": 0.5380154848098755,
+    "mse": 0.08477773517370224,
+    "mae": 0.25269603729248047,
+    "top1_pool10": 0.099525,
+    "chance_pool10": 0.1,
+    "top1_pool100": 0.010825,
+    "chance_pool100": 0.01,
+    "top1_pool1000": 0.002625,
+    "chance_pool1000": 0.001
+  },
+  "gain_over_floor_unseen": {
+    "psnr_gain_db": -1.430511474609375e-05,
+    "ssim_gain": -0.001142740249633789,
+    "top1_pool10_gain": 0.000800000000000009,
+    "top1_pool100_gain": -0.0017499999999999998,
+    "top1_pool1000_gain": -0.000325
+  },
+  "gain_over_floor_seen": {
+    "psnr_gain_db": 0.11133384704589844,
+    "ssim_gain": 0.008729875087738037,
+    "top1_pool10_gain": 0.005400000000000002,
+    "top1_pool100_gain": 0.0005249999999999994,
+    "top1_pool1000_gain": -0.0005749999999999999
+  },
+  "kgg_psnr": 1.000128488461736,
+  "kgg_top1_100": 4.333333333333337,
+  "history": [
+    {
+      "step": 1000,
+      "loss": 0.2509025037288666,
+      "seen": {
+        "psnr": 11.18200397491455,
+        "ssim": 0.5284844040870667,
+        "mse": 0.08318676054477692,
+        "mae": 0.2490347921848297,
+        "top1_pool10": 0.098,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.0097,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.0017,
+        "chance_pool1000": 0.001
+      },
+      "unseen": {
+        "psnr": 11.075104713439941,
+        "ssim": 0.5192233920097351,
+        "mse": 0.08491872996091843,
+        "mae": 0.2527625262737274,
+        "top1_pool10": 0.0989,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.01,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.001225,
+        "chance_pool1000": 0.001
+      },
+      "elapsed": 19.509445667266846
+    },
+    {
+      "step": 2000,
+      "loss": 0.2542976140975952,
+      "seen": {
+        "psnr": 11.193732261657715,
+        "ssim": 0.5346894860267639,
+        "mse": 0.08297454565763474,
+        "mae": 0.24878543615341187,
+        "top1_pool10": 0.10255,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.010175,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.001525,
+        "chance_pool1000": 0.001
+      },
+      "unseen": {
+        "psnr": 11.081462860107422,
+        "ssim": 0.5250019431114197,
+        "mse": 0.08487159013748169,
+        "mae": 0.2527964413166046,
+        "top1_pool10": 0.102075,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.010325,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.001875,
+        "chance_pool1000": 0.001
+      },
+      "elapsed": 38.09048843383789
+    },
+    {
+      "step": 3000,
+      "loss": 0.2447817176580429,
+      "seen": {
+        "psnr": 11.198555946350098,
+        "ssim": 0.5442065000534058,
+        "mse": 0.08289969712495804,
+        "mae": 0.2487066239118576,
+        "top1_pool10": 0.100175,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.01035,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.00125,
+        "chance_pool1000": 0.001
+      },
+      "unseen": {
+        "psnr": 11.08371639251709,
+        "ssim": 0.5342565774917603,
+        "mse": 0.08490666002035141,
+        "mae": 0.2528454065322876,
+        "top1_pool10": 0.0983,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.009675,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.00115,
+        "chance_pool1000": 0.001
+      },
+      "elapsed": 56.74226355552673
+    },
+    {
+      "step": 4000,
+      "loss": 0.2568136155605316,
+      "seen": {
+        "psnr": 11.200141906738281,
+        "ssim": 0.54703289270401,
+        "mse": 0.08287124335765839,
+        "mae": 0.24869346618652344,
+        "top1_pool10": 0.100175,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.009575,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.001475,
+        "chance_pool1000": 0.001
+      },
+      "unseen": {
+        "psnr": 11.089811325073242,
+        "ssim": 0.5371949672698975,
+        "mse": 0.08472780138254166,
+        "mae": 0.2526243031024933,
+        "top1_pool10": 0.0994,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.0094,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.000925,
+        "chance_pool1000": 0.001
+      },
+      "elapsed": 74.62369704246521
+    },
+    {
+      "step": 5000,
+      "loss": 0.24570512771606445,
+      "seen": {
+        "psnr": 11.201644897460938,
+        "ssim": 0.5479023456573486,
+        "mse": 0.08284412324428558,
+        "mae": 0.24865752458572388,
+        "top1_pool10": 0.1036,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.0107,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.0008,
+        "chance_pool1000": 0.001
+      },
+      "unseen": {
+        "psnr": 11.090296745300293,
+        "ssim": 0.5380297303199768,
+        "mse": 0.08474773913621902,
+        "mae": 0.25264793634414673,
+        "top1_pool10": 0.099,
+        "chance_pool10": 0.1,
+        "top1_pool100": 0.008425,
+        "chance_pool100": 0.01,
+        "top1_pool1000": 0.00105,
+        "chance_pool1000": 0.001
+      },
+      "elapsed": 94.25396513938904
+    }
+  ],
+  "train_seconds": 96.98793005943298
+}

@@ -1,0 +1,17 @@
+skip-done: 0 already complete, 14 to run
+suite E1: 14 runs on GPUs 0,2,1
+[gpu2] E1_nkeys_1__linearmixer_shapesB rc=0 149s
+[gpu2] E1_nkeys_4__linearmixer_shapesB rc=0 102s
+[gpu0] E1_nkeys_1__resunet_shapesB rc=0 369s
+[gpu1] E1_nkeys_4__resunet_shapesB rc=0 371s
+[gpu0] E1_nkeys_16__linearmixer_shapesB rc=0 106s
+[gpu0] E1_nkeys_64__linearmixer_shapesB rc=0 87s
+[gpu2] E1_nkeys_16__resunet_shapesB rc=0 348s
+[gpu2] E1_nkeys_256__linearmixer_shapesB rc=0 81s
+[gpu1] E1_nkeys_64__resunet_shapesB rc=0 350s
+[gpu1] E1_nkeys_1024__linearmixer_shapesB rc=0 88s
+[gpu0] E1_nkeys_256__resunet_shapesB rc=0 340s
+[gpu0] E1_nkeys_inf__linearmixer_shapesB rc=0 81s
+[gpu2] E1_nkeys_1024__resunet_shapesB rc=0 344s
+[gpu1] E1_nkeys_inf__resunet_shapesB rc=0 342s
+DONE E1: 14/14 ok

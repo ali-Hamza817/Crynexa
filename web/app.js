@@ -16,7 +16,8 @@ const S = (css) => Object.fromEntries(
 
 const f = (v, d = 3) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
 const pct = (v) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
-const VERDICT_COLOR = { broken: "var(--emerald)", partial: "var(--amber)", resisted: "var(--indigo)" };
+const VERDICT_COLOR = { broken: "var(--emerald)", partial: "var(--amber)",
+                        resisted: "var(--indigo)", "no-info": "var(--mut)" };
 
 /* ------------------------------------------------------------ helpers -- */
 function useReveal() {
@@ -74,10 +75,12 @@ const Stat = ({ k, v, n, cls, ribbon }) => html`
 
 /* --------------------------------------------------------------- nav -- */
 const NAV = [
-  ["overview", "Overview"], ["problem", "The problem"], ["datasets", "Datasets"],
-  ["cipher", "Cipher"], ["method", "Method"], ["calibration", "Calibration"],
-  ["results", "Results"], ["samples", "Reconstructions"],
-  ["findings", "Findings"], ["status", "Status"],
+  ["overview", "Overview"], ["findings", "Key findings"], ["questions", "Questions"],
+  ["problem", "Problem"], ["datasets", "Datasets"], ["cipher", "Cipher"],
+  ["method", "Method"], ["calibration", "Calibration"], ["curve", "Key curve"],
+  ["mechanism", "Mechanism"], ["walkthrough", "Sample run"], ["results", "Results"], ["samples", "Reconstructions"],
+  ["claims", "Scope"], ["confounds", "Confounds"], ["contributions", "Contribution"],
+  ["status", "Status"],
 ];
 
 const Nav = ({ generated }) => html`
@@ -352,10 +355,10 @@ const Calibration = ({ runs }) => {
 /* ----------------------------------------------------------- results -- */
 const COLS = [
   ["variant", "configuration", 1], ["regime", "keys", 1], ["attacker", "attacker", 1],
-  ["dataset", "data", 1], ["nKeys", "# keys", 0], ["seenTop1", "seen top-1", 0],
-  ["unseenTop1", "unseen top-1", 0], ["mismatchTop1", "mismatch", 0],
-  ["unseenPsnr", "psnr", 0], ["floorPsnr", "floor", 0], ["gainDb", "gain dB", 0],
-  ["kgg", "KGG", 0], ["secs", "sec", 0],
+  ["dataset", "data", 1], ["nKeys", "# keys", 0], ["ceiling", "ceiling", 0],
+  ["unseenTop1", "unseen top-1", 0], ["verdict", "verdict", 1],
+  ["mismatchTop1", "mismatch", 0], ["unseenPsnr", "psnr", 0], ["floorPsnr", "floor", 0],
+  ["gainDb", "gain dB", 0], ["secs", "sec", 0],
 ];
 
 const Results = ({ runs, sel, setSel }) => {
@@ -446,9 +449,15 @@ const Results = ({ runs, sel, setSel }) => {
               <td class="l"><span class=${"pill " + (r.regime === "same-key" ? "p-same" : "p-key")}>
                 ${r.regime}</span></td>
               <td class="l">${r.attacker}</td><td class="l">${r.dataset}</td>
-              <td>${r.nKeys}</td><td>${f(r.seenTop1)}</td>
+              <td>${r.nKeys}</td>
+              <td style=${{ color: r.ceilingValid ? "" : "var(--rose)",
+                            fontWeight: r.ceilingValid ? 400 : 700 }}
+                  title=${r.ceilingValid ? "attacker can invert this cipher with a fixed key"
+                    : "ceiling at chance — this cell carries NO security information"}>
+                ${f(r.ceiling)}</td>
               <td><span class="bar"><i style=${{ width: Math.min(100, r.unseenTop1 * 100) + "%",
-                    background: VERDICT_COLOR[r.verdict] }}></i></span>${f(r.unseenTop1)}</td>
+                    background: VERDICT_COLOR[r.verdict] || "var(--mut)" }}></i></span>${f(r.unseenTop1)}</td>
+              <td class="l"><span class=${"pill p-" + r.verdict}>${r.verdict}</span></td>
               <td>${f(r.mismatchTop1)}</td>
               <td>${f(r.unseenPsnr, 2)}</td><td>${f(r.floorPsnr, 2)}</td>
               <td style=${{ color: r.gainDb > 1 ? "var(--emerald)" : r.gainDb < -0.5 ? "var(--rose)" : "" ,
@@ -459,6 +468,11 @@ const Results = ({ runs, sel, setSel }) => {
         </tbody>
       </table>
     </div></div>
+    <p class="note"><strong>Ceiling</strong> is the same-key retrieval of this exact
+    configuration — what the attacker achieves when the key is fixed. A ceiling at chance
+    (shown in red) means the cell carries <em>no</em> security information: "the cipher
+    resists" and "this attacker cannot invert it at all" then produce identical numbers.
+    Read every unseen-key number against its ceiling.</p>
     <p class="note"><strong>KGG</strong> is the normalised Key Generalization Gap:
     0 means the attack transfers perfectly to unseen keys (a full key-agnostic break),
     1 means it retains nothing (key mixing sound). <strong>Gain dB</strong> is PSNR above
@@ -516,13 +530,17 @@ const FINDINGS = [
    "Adjacent-pixel correlation is 0.0006 for noise and 0.9162 for structured images. Running the same attack on both separates cipher inversion from prior exploitation."],
   ["F9", "An auxiliary SSIM loss drove models below the prior floor",
    "A constant prediction has degenerate SSIM, so the term is maximally penalised and the optimiser manufactures spurious structure — PSNR fell to ~6.0 dB against an 11.1 dB floor. Switched to L1."],
+  ["F11", "CBC modular feedback defeats regression- and classification-based attack",
+   "Single-variable control: XOR 1.000 vs CBC 0.011 with everything else identical. Three fixes failed — predecessor channel, a verified-exact 256-way categorical head (loss pinned at exactly ln 256), and longer training. The inverse depends on two bytes, giving 65,536 combinations per position against 50,000 images, so the attacker must learn modular arithmetic rather than memorise. Corrected later: a ResUNet on CIFAR-10 does reach a 0.981 ceiling, so this is conditional on plaintext redundancy, not absolute."],
+  ["F12", "Key-specific memorisation is a capacity budget, not learning",
+   "The key-diversity curve separates the two: seen-key accuracy decays 1.000 → 0.982 → 0.673 → 0.034 as the key pool grows, while unseen-key accuracy never leaves chance. An earlier partial reading called this collapse immediate; the completed sweep shows it is gradual, and the gradient is what proves the flat unseen line is not a capacity artifact."],
   ["F10", "Correction: convolution can invert a global pixel gather",
    "An earlier reading held this impossible. Once the loss was fixed, ResUNet solves the key-independent permutation control completely (top-1 1.000, +13.9 dB) — the obstacle was F9, not inductive bias. The architecture difference is quantitative (+13.9 vs +15.5 dB), not categorical."],
 ];
 
 const Findings = () => html`
-  <${Section} id="findings" eyebrow="Methodology"
-    title="Ten confounds that would each have faked a security result"
+  <${Section} id="confounds" eyebrow="Methodology"
+    title="Twelve confounds that would each have faked a security result"
     lede=${`A negative cryptanalysis result only means something if the attacker was capable
       in the first place. Ruling these out is part of the contribution, so they are recorded
       rather than quietly fixed — including one correction to an earlier conclusion.`}>
@@ -550,6 +568,7 @@ const Status = ({ data }) => html`
             ${s.done}${s.total ? " / " + s.total : ""}</div>
           <div class="prog"><i style=${{ width: s.total ? (100 * s.done / s.total) + "%" : "0%" }}></i></div>
           <div class="n" style=${S("color:var(--mut);font-size:12.5px;margin-top:8px")}>${s.state}</div>
+          ${s.desc && html`<div class="n" style=${S("color:var(--mut);font-size:11.5px;margin-top:4px;line-height:1.45")}>${s.desc}</div>`}
         </div>`)}
     </div>
     <div class="grid g2 mt2">
@@ -568,9 +587,335 @@ const Status = ({ data }) => html`
     </div>
   <//>`;
 
+
+/* --------------------------------------------------- key findings -- */
+const KeyFindings = ({ data }) => {
+  const d = data.derived, c = d.counts;
+  const top = d.leaks.filter((l) => l.verdict === "broken" && !/posctrl/.test(l.variant));
+  const best = top[0];
+  return html`
+  <${Section} id="findings" eyebrow="Key findings"
+    title="What ${c.total} trained models establish"
+    lede=${`Each finding below is measured against a prior floor, a mismatch control and
+      its own same-key ceiling. Chance for top-1 retrieval at pool size 100 is 0.010.`}>
+    <div class="grid g2 mt2">
+      <div class="card rev"><div class="ribbon rb-emerald"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>Finding 1 · a real leak</div>
+        <h3 style=${S("font-size:17px")}>Row/column permutation is broken without the key</h3>
+        <p class="note">Scrambling row order and column order independently preserves the
+        multiset of whole rows and columns <em>under every key</em>. Both attacker families
+        find it, on both datasets, with mismatch controls at chance.</p>
+        <div style=${S("font-size:34px;font-weight:780;color:var(--emerald);margin-top:12px;letter-spacing:-.03em")}>
+          ${best ? f(best.unseenTop1) : "—"}
+          <span style=${S("font-size:14px;font-weight:600;color:var(--mut)")}>
+            &nbsp;unseen-key top-1 · ${best ? Math.round(best.unseenTop1 / best.chance) : "—"}× chance</span>
+        </div>
+      </div>
+      <div class="card rev"><div class="ribbon rb-indigo"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>Finding 2 · the mechanism</div>
+        <h3 style=${S("font-size:17px")}>Keyed diffusion supplies all key-agnostic security</h3>
+        <p class="note">Hold the permutation <em>fully key-independent</em> and toggle only
+        the diffusion stage. A single keyed diffusion takes the attack from total recovery
+        to chance.</p>
+        <div style=${S("display:flex;gap:24px;align-items:baseline;margin-top:12px")}>
+          <div><div style=${S("font-size:30px;font-weight:780;color:var(--rose);letter-spacing:-.03em")}>1.000</div>
+            <div class="n" style=${S("color:var(--mut);font-size:12px")}>no diffusion</div></div>
+          <div style=${S("font-size:20px;color:var(--line2)")}>→</div>
+          <div><div style=${S("font-size:30px;font-weight:780;color:var(--emerald);letter-spacing:-.03em")}>0.010</div>
+            <div class="n" style=${S("color:var(--mut);font-size:12px")}>+ keyed diffusion</div></div>
+        </div>
+      </div>
+      <div class="card rev"><div class="ribbon rb-cyan"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>Finding 3 · the central negative</div>
+        <h3 style=${S("font-size:17px")}>Zero key generalisation, at every key diversity</h3>
+        <p class="note">Unseen-key retrieval is pinned at chance from 1 training key to
+        unlimited. The same models memorise ~16 keys at 0.98, so this is not a capacity or
+        training artifact — they memorise, they never generalise across key space.</p>
+      </div>
+      <div class="card rev"><div class="ribbon rb-amber"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>Finding 4 · non-effects</div>
+        <h3 style=${S("font-size:17px")}>Round count and keystream precision do not matter</h3>
+        <p class="note">Both are treated as security parameters in the literature. With a
+        valid ceiling in every cell, rounds 1–4 and float32 vs float64 all sit at chance:
+        against this attack class their marginal value is zero.</p>
+        <div class="mt">
+          ${Object.entries(d.axes).map(([k, v]) => v.n ? html`
+            <div class="kv" key=${k}><span class="k">${k}</span>
+              <span class="v">${f(v.min)} – ${f(v.max)} <span style=${S("color:var(--mut);font-weight:400")}>(${v.n} runs)</span></span></div>` : null)}
+        </div>
+      </div>
+    </div>
+    <div class="grid g4 mt2">
+      <${Stat} ribbon="indigo" k="Trained models" v=${html`<${CountUp} value=${c.total} />`}
+               n="each with full controls recorded" />
+      <${Stat} ribbon="emerald" k="Broken key-agnostically" cls="ok"
+               v=${html`<${CountUp} value=${c.broken} />`} n="unseen-key retrieval ≥ 5× chance" />
+      <${Stat} ribbon="amber" k="Partial leaks" cls="wn"
+               v=${html`<${CountUp} value=${c.partial} />`} n="2–5× chance" />
+      <${Stat} ribbon="cyan" k="Valid ceilings" cls="cy"
+               v=${`${c.validCeiling}/${c.keyAgnostic}`}
+               n="cells where the attacker provably CAN invert with a fixed key" />
+    </div>
+  <//>`;
+};
+
+/* ------------------------------------------------ research questions -- */
+const Questions = ({ data }) => html`
+  <${Section} id="questions" alt eyebrow="Research questions"
+    title="The three questions, and what the data answers"
+    lede="Verdicts are stated only where a valid same-key ceiling exists for the cells involved.">
+    <div class="grid mt2" style=${S("gap:14px")}>
+      ${data.research.map((r) => html`
+        <div class="card rev" key=${r.id}>
+          <div style=${S("display:flex;gap:12px;align-items:baseline;flex-wrap:wrap")}>
+            <span class="badge">${r.id}</span>
+            <span class=${"pill " + (r.verdict.includes("negative") ? "p-partial" : "p-broken")}>
+              ${r.verdict}</span>
+          </div>
+          <p style=${S("margin-top:10px;font-weight:600;font-size:15px")}>${r.q}</p>
+          <p class="note">${r.a}</p>
+        </div>`)}
+    </div>
+  <//>`;
+
+/* ------------------------------------------- key-diversity curve -- */
+const KeyCurve = ({ data }) => {
+  const curves = data.derived.curves;
+  const keys = Object.keys(curves);
+  const [sel, setSel] = useState(keys[0] || null);
+  if (!keys.length) return null;
+  const pts = curves[sel] || [];
+  const W = 720, H = 300, L = 56, R = 18, T = 18, B = 46;
+  const xs = pts.map((_, i) => L + (i / Math.max(1, pts.length - 1)) * (W - L - R));
+  const y = (v) => T + (1 - Math.min(1, v)) * (H - T - B);
+  const path = (k) => pts.map((p, i) => `${i ? "L" : "M"}${xs[i]},${y(p[k])}`).join(" ");
+  return html`
+  <${Section} id="curve" eyebrow="Curve 1 · the money plot"
+    title="Key diversity: memorisation capacity versus generalisation"
+    lede=${`One variable changes across this sweep — how many distinct secret keys appear in
+      training. "Seen" is retrieval on keys drawn from the training pool; "unseen" on keys
+      the model has never encountered. Separating the two is the whole point.`}>
+    <div class="controls mt2 rev">
+      ${keys.map((k) => html`
+        <button key=${k} onClick=${() => setSel(k)}
+          class=${"pill " + (k === sel ? "p-key" : "p-resisted")}
+          style=${S("cursor:pointer;border:none;font-family:inherit;font-size:12px;padding:7px 13px")}>
+          ${k}</button>`)}
+    </div>
+    <div class="card rev">
+      <svg viewBox=${`0 0 ${W} ${H}`} width="100%" height=${H}>
+        ${[0, 0.25, 0.5, 0.75, 1].map((g) => html`<${React.Fragment} key=${g}>
+          <line x1=${L} y1=${y(g)} x2=${W - R} y2=${y(g)} stroke="var(--line)" stroke-width="1" />
+          <text x=${L - 9} y=${y(g) + 4} text-anchor="end" font-size="11" fill="var(--mut)">${g.toFixed(2)}</text>
+        <//>`)}
+        <line x1=${L} y1=${y(pts[0].chance)} x2=${W - R} y2=${y(pts[0].chance)}
+              stroke="var(--rose)" stroke-width="1.5" stroke-dasharray="5 4" />
+        <text x=${W - R} y=${y(pts[0].chance) - 7} text-anchor="end" font-size="11"
+              fill="var(--rose)">chance ${f(pts[0].chance, 3)}</text>
+        <path d=${path("seen")} fill="none" stroke="var(--indigo)" stroke-width="2.5"
+              stroke-linejoin="round" />
+        <path d=${path("unseen")} fill="none" stroke="var(--emerald)" stroke-width="2.5"
+              stroke-linejoin="round" />
+        ${pts.map((p, i) => html`<${React.Fragment} key=${p.label}>
+          <circle cx=${xs[i]} cy=${y(p.seen)} r="4" fill="var(--indigo)" />
+          <circle cx=${xs[i]} cy=${y(p.unseen)} r="4" fill="var(--emerald)" />
+          <text x=${xs[i]} y=${H - B + 20} text-anchor="middle" font-size="11"
+                fill="var(--mut)">${p.label}</text>
+        <//>`)}
+        <text x=${(L + W) / 2} y=${H - 6} text-anchor="middle" font-size="11.5"
+              fill="var(--mut)">distinct secret keys seen during training</text>
+      </svg>
+      <div class="legend">
+        <span><i style=${S("background:var(--indigo)")}></i>seen keys — from the training pool</span>
+        <span><i style=${S("background:var(--emerald)")}></i>unseen keys — never encountered</span>
+        <span><i style=${S("background:var(--rose)")}></i>chance</span>
+      </div>
+      <p class="note"><strong>Read it like this.</strong> The blue line falling is a
+      memorisation budget being consumed — the attacker holds a handful of keystreams
+      perfectly, then runs out. The green line never leaves chance: more training keys buy
+      <em>no</em> transfer to a new key. Because the same models demonstrably reach 0.98 on
+      16 keys, the flat green line cannot be dismissed as undertrained or under-capacity.</p>
+    </div>
+  <//>`;
+};
+
+/* ------------------------------------------------------- mechanism -- */
+const Mechanism = ({ data }) => {
+  const m = data.derived.mechanism;
+  if (!m.length) return null;
+  return html`
+  <${Section} id="mechanism" alt eyebrow="Curve 2 · mechanism"
+    title="Which stage of the cipher actually carries the security?"
+    lede=${`Both configurations below use a permutation that is IDENTICAL for every key.
+      They differ in one thing only: whether a keyed diffusion stage follows. That isolates
+      the contribution of each stage.`}>
+    <div class="tablewrap rev mt2"><table>
+      <thead><tr><th class="l">dataset</th><th class="l">attacker</th>
+        <th>key-independent permutation, no diffusion</th>
+        <th>+ keyed diffusion</th><th>chance</th></tr></thead>
+      <tbody>${m.map((r) => html`
+        <tr key=${r.dataset + r.attacker}>
+          <td class="l">${r.dataset}</td><td class="l">${r.attacker}</td>
+          <td style=${S("color:var(--rose);font-weight:750;font-size:15px")}>${f(r.noDiffusion)}</td>
+          <td style=${S("color:var(--emerald);font-weight:750;font-size:15px")}>${f(r.keyedDiffusion)}</td>
+          <td>${f(r.chance)}</td></tr>`)}
+      </tbody></table></div>
+    <p class="note"><strong>Permutation contributes essentially nothing to key-agnostic
+    security; diffusion contributes all of it.</strong> The same masking removes the
+    row/column leak: row/col permutation alone reaches 0.221, but with keyed diffusion
+    added it falls to 0.010. For a scheme designer the permutation stage may be chosen for
+    speed — the diffusion stage must be keyed and must cover the whole image.</p>
+  <//>`;
+};
+
+/* ------------------------------------------------------- claims -- */
+const CLAIMS = [
+  ["Instrument detects a key-independent leak", true, "1.000, +15.6 to +20.4 dB, both datasets"],
+  ["Instrument does not hallucinate", true, "AES and every mismatch control at chance"],
+  ["Row/column permutation leaks key-agnostically", true, "up to 22× chance, 2 datasets × 2 attackers"],
+  ["Full 2-D permutation leaks much less", true, "2.5–4.6× chance on CIFAR, ~1.5× on shapes"],
+  ["Keyed diffusion supplies all key-agnostic security", true, "1.000 → 0.010 with permutation held key-independent"],
+  ["Round count governs resistance", false, "1 round already at chance; 2–4 identical"],
+  ["float32 keystream degradation is exploitable", false, "at chance"],
+  ["Zero-shot key generalisation occurs at any key diversity", false, "flat at chance from 1 key to unlimited"],
+  ["CBC feedback confers key-agnostic resistance", true, "where a ceiling exists: CIFAR/resunet 0.981 → 0.010"],
+  ["CBC feedback is “secure”", null, "not shown — a claim about one attacker family, not the cipher"],
+  ["Attack success depends on attacker inductive bias", true, "0.221 vs 0.087 on the same cipher"],
+];
+
+const Claims = () => html`
+  <${Section} id="claims" eyebrow="Scope"
+    title="What the data supports — and what it does not"
+    lede=${`Stating the negative space matters as much as the results. Everything here
+      concerns zero-shot key-agnostic attack at 32×32 with two attacker families.`}>
+    <div class="tablewrap rev mt2"><table>
+      <thead><tr><th class="l">claim</th><th class="l">verdict</th><th class="l">evidence</th></tr></thead>
+      <tbody>${CLAIMS.map(([c, ok, ev]) => html`
+        <tr key=${c}><td class="l">${c}</td>
+          <td class="l"><span class=${"pill " + (ok === true ? "p-broken" : ok === false ? "p-partial" : "p-resisted")}>
+            ${ok === true ? "supported" : ok === false ? "refuted" : "not shown"}</span></td>
+          <td class="l" style=${S("color:var(--mut)")}>${ev}</td></tr>`)}
+      </tbody></table></div>
+    <p class="note">This does <strong>not</strong> establish that these configurations are
+    secure against a key-adaptive (known-plaintext) attacker, which is a separate setting
+    that supplies the key information the zero-shot attacker provably lacks.</p>
+  <//>`;
+
+/* ------------------------------------------------- contributions -- */
+const Contributions = ({ data }) => html`
+  <${Section} id="contributions" alt eyebrow="Contribution"
+    title="What this project delivers"
+    lede="A reproducible framework and a measured map, rather than a single attack demonstration.">
+    <div class="grid g2 mt2">
+      ${data.contributions.map(([t, d], i) => html`
+        <div class="card rev" key=${t}>
+          <div class=${"ribbon rb-" + ["indigo", "cyan", "emerald", "amber", "indigo"][i % 5]}></div>
+          <h3 style=${S("font-size:15.5px")}>${t}</h3>
+          <p class="note">${d}</p>
+        </div>`)}
+    </div>
+  <//>`;
+
+
+/* --------------------------------------------------- live walkthrough -- */
+const Walkthrough = ({ demo }) => {
+  if (!demo || !demo.length) return null;
+  const [i, setI] = useState(0);
+  const c = demo[i] || demo[0];
+  const verdict = c.medianRank <= 5 ? "broken" : c.medianRank <= 200 ? "partial" : "resisted";
+  const label = { broken: "recovered", partial: "partially recovered", resisted: "not recovered" }[verdict];
+  return html`
+  <${Section} id="walkthrough" eyebrow="Sample run"
+    title="One image, start to finish, under a key the attacker has never seen"
+    lede=${`Each case below is a real execution, not an illustration: a secret key is drawn
+      fresh from the full key space, held-out test images are encrypted under it, and a
+      trained attacker — which never saw this key during training — is asked to reconstruct
+      them. The true plaintext is then ranked against ${c.poolSize - 1} decoys.`}>
+
+    <div class="controls mt2 rev">
+      ${demo.map((d, j) => html`
+        <button key=${d.run} onClick=${() => setI(j)}
+          class=${"pill " + (j === i ? "p-key" : "p-resisted")}
+          style=${S("cursor:pointer;border:none;font-family:inherit;font-size:12px;padding:8px 14px")}>
+          ${d.title.split("—")[0].trim()}</button>`)}
+    </div>
+
+    <div class="card rev">
+      <div style=${S("display:flex;gap:12px;align-items:baseline;flex-wrap:wrap")}>
+        <h3 style=${S("font-size:18px")}>${c.title}</h3>
+        <span class=${"pill p-" + verdict}>${label}</span>
+      </div>
+      <p class="note" style=${S("max-width:80ch")}>${c.why}</p>
+
+      <div class="grid g3 mt2">
+        <div>
+          <div class="eyebrow" style=${S("margin-bottom:9px")}>Step 1 · the secret key</div>
+          <p class="note" style=${S("margin-top:0")}>Drawn uniformly from the full key space
+          at demo time. Training used ${c.trainedKeys}, so the attacker has not seen it.</p>
+          <div class="kv mt"><span class="k">x₀</span><span class="v mono">${c.key.x0.toFixed(12)}</span></div>
+          <div class="kv"><span class="k">param 2</span><span class="v mono">${c.key.p1.toFixed(12)}</span></div>
+          ${c.key.p2 !== 0 && html`<div class="kv"><span class="k">param 3</span><span class="v mono">${c.key.p2.toFixed(12)}</span></div>`}
+        </div>
+        <div>
+          <div class="eyebrow" style=${S("margin-bottom:9px")}>Step 2 · the cipher</div>
+          <div class="kv"><span class="k">configuration</span><span class="v mono" style=${S("font-size:11px")}>${c.cipher}</span></div>
+          ${["map", "rounds", "mode", "perm_scope", "perm_keyed", "feedback"].map((k) =>
+            c.cipherCfg[k] !== undefined ? html`
+            <div class="kv" key=${k}><span class="k">${k}</span>
+              <span class="v mono">${String(c.cipherCfg[k])}</span></div>` : null)}
+        </div>
+        <div>
+          <div class="eyebrow" style=${S("margin-bottom:9px")}>Step 3 · the attacker</div>
+          <div class="kv"><span class="k">architecture</span><span class="v">${c.attacker}</span></div>
+          <div class="kv"><span class="k">trained on</span><span class="v">${c.dataset}</span></div>
+          <div class="kv"><span class="k">keys seen in training</span><span class="v">${c.trainedKeys}</span></div>
+          <div class="kv"><span class="k">this key seen?</span>
+            <span class="v" style=${S("color:var(--rose)")}>no</span></div>
+        </div>
+      </div>
+
+      <div class="eyebrow mt2" style=${S("margin-bottom:9px")}>Step 4 · result on ${c.poolSize} held-out images</div>
+      <div class="grid g4">
+        <${Stat} ribbon=${verdict === "broken" ? "emerald" : verdict === "partial" ? "amber" : "indigo"}
+                 k="Median rank" cls=${verdict === "resisted" ? "" : "ok"}
+                 v=${`${Math.round(c.medianRank)} / ${c.poolSize}`}
+                 n=${`where the true plaintext lands among ${c.poolSize} candidates · random would be ${Math.round(c.poolSize / 2)}`} />
+        <${Stat} ribbon="cyan" k="Exact top-1" v=${f(c.top1)}
+                 n=${`identified outright · chance ${f(1 / c.poolSize, 3)}`} />
+        <${Stat} ribbon="indigo" k="PSNR" v=${f(c.meanPsnr, 2) + " dB"}
+                 n=${`prior floor ${f(c.floorPsnr, 2)} dB · gain ${c.gainDb > 0 ? "+" : ""}${f(c.gainDb, 2)} dB`} />
+        <${Stat} ribbon="amber" k="Top-10" v=${f(c.top10)}
+                 n="true plaintext inside the 10 nearest candidates" />
+      </div>
+
+      <div class="eyebrow mt2" style=${S("margin-bottom:9px")}>Step 5 · what came out</div>
+      <div class="samples">
+        ${c.samples.map((t, k) => html`
+          <div class="trip" key=${k}>
+            <img src=${t.plain} alt="plaintext" /><div class="lab">plaintext</div>
+            <img src=${t.cipher} alt="ciphertext" /><div class="lab">ciphertext</div>
+            <img src=${t.recon} alt="reconstruction" /><div class="lab">recovered</div>
+            <div style=${S("font-size:10px;color:var(--mut);text-align:center;line-height:1.5")}>
+              ${f(t.psnr, 1)} dB<br/>
+              <span style=${{ color: t.rank === 1 ? "var(--emerald)" : t.rank <= 10 ? "var(--amber)" : "var(--mut)",
+                              fontWeight: t.rank <= 10 ? 700 : 400 }}>rank ${t.rank}</span>
+            </div>
+          </div>`)}
+      </div>
+      <p class="note"><strong>How to read the rank.</strong> It is the position of the true
+      plaintext when all ${c.poolSize} candidates are ordered by similarity to the
+      reconstruction. Rank 1 means the attacker picked the right image outright; a rank near
+      ${Math.round(c.poolSize / 2)} means it did no better than guessing. This matters more
+      than how the pictures look — a plausible-looking output can be produced from the
+      dataset prior alone, and rank is what separates the two.</p>
+    </div>
+  <//>`;
+};
+
 /* --------------------------------------------------------------- app -- */
 function App() {
   const [data, setData] = useState(null);
+  const [demo, setDemo] = useState(null);
   const [sel, setSel] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -579,6 +924,8 @@ function App() {
       .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then((d) => { setData(d); setSel((s) => s || pickDefault(d)); })
       .catch((e) => setErr(String(e)));
+    fetch("demo.json?t=" + Date.now()).then((r) => r.ok ? r.json() : null)
+      .then(setDemo).catch(() => setDemo(null));
     load();
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
@@ -595,14 +942,21 @@ function App() {
     <${Nav} generated=${data.generated} />
     <${Hero} runs=${data.runs} />
     <${Overview} data=${data} />
+    <${KeyFindings} data=${data} />
+    <${Questions} data=${data} />
     <${Problem} />
     <${Datasets} data=${data} />
     <${Cipher} data=${data} />
     <${Method} data=${data} />
     <${Calibration} runs=${data.runs} />
+    <${KeyCurve} data=${data} />
+    <${Mechanism} data=${data} />
+    <${Walkthrough} demo=${demo} />
     <${Results} runs=${data.runs} sel=${sel} setSel=${setSel} />
     <${Samples} data=${data} sel=${sel} runs=${data.runs} />
+    <${Claims} />
     <${Findings} />
+    <${Contributions} data=${data} />
     <${Status} data=${data} />
     <div class="footer"><div class="wrap">
       Crynexa · key-agnostic neural cryptanalysis of chaos-based image encryption ·
