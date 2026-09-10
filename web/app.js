@@ -75,7 +75,7 @@ const Stat = ({ k, v, n, cls, ribbon }) => html`
 
 /* --------------------------------------------------------------- nav -- */
 const NAV = [
-  ["overview", "Overview"], ["findings", "Key findings"], ["questions", "Questions"],
+  ["overview", "Overview"], ["plain", "In plain English"], ["findings", "Key findings"], ["questions", "Questions"],
   ["problem", "Problem"], ["datasets", "Datasets"], ["cipher", "Cipher"],
   ["method", "Method"], ["calibration", "Calibration"], ["curve", "Key curve"],
   ["mechanism", "Mechanism"], ["walkthrough", "Sample run"], ["results", "Results"], ["samples", "Reconstructions"],
@@ -588,6 +588,103 @@ const Status = ({ data }) => html`
   <//>`;
 
 
+
+/* ------------------------------------------------------ plain english -- */
+const PlainEnglish = () => html`
+  <${Section} id="plain" eyebrow="In plain English"
+    title="What this project is, without the jargon"
+    lede="If you read only one section, read this one.">
+
+    <div class="grid g3 mt2">
+      <div class="card rev"><div class="ribbon rb-indigo"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>The problem</div>
+        <h3 style=${S("font-size:17px")}>Can an AI break encryption without the password?</h3>
+        <p class="note">People scramble images so nobody else can see them. One popular
+        family of methods uses <em>chaos</em> — maths that turns a secret password into a
+        stream of unpredictable numbers, then uses those numbers to shuffle the pixels and
+        change their colours.</p>
+        <p class="note">Normally you need the password to unscramble it. Our question:
+        <strong>if an AI studies thousands of scrambled-and-original image pairs, can it
+        learn to unscramble a picture that was locked with a password it has never
+        seen?</strong></p>
+        <p class="note">If the answer were yes, the encryption would be broken in a serious
+        way — an attacker would not need to steal your password at all.</p>
+      </div>
+
+      <div class="card rev"><div class="ribbon rb-cyan"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>What we built</div>
+        <h3 style=${S("font-size:17px")}>An honest testing machine, not just one attack</h3>
+        <p class="note">We wrote the encryption ourselves with <strong>switches for each
+        security feature</strong>, so we could turn them on and off one at a time and see
+        which one actually does the protecting.</p>
+        <p class="note">Then we trained <strong>223 AI attackers</strong> against it.</p>
+        <p class="note">The important part is how we check our own work. Every single test
+        also runs a sanity question: <em>"can this AI unscramble the image when we DO give
+        it the password?"</em> If it cannot even do that, then it failing without the
+        password proves nothing — the AI was simply too weak. Most papers skip this. We
+        report those cases as <strong>"no information"</strong> instead of claiming the
+        encryption is safe.</p>
+        <p class="note">We also included two reference points: real bank-grade encryption
+        (AES), which the attack <em>must</em> fail against, and a deliberately fake cipher
+        with no password protection at all, which it <em>must</em> break. Both behaved
+        correctly, so we know the measuring instrument works.</p>
+      </div>
+
+      <div class="card rev"><div class="ribbon rb-emerald"></div>
+        <div class="eyebrow" style=${S("margin-bottom:8px")}>What we found</div>
+        <h3 style=${S("font-size:17px")}>One real weakness, and one clear rule</h3>
+        <p class="note"><strong>1. A common shortcut is genuinely breakable.</strong> Some
+        schemes shuffle the rows and the columns separately because it is faster. That
+        leaves a fingerprint which is the same no matter what password you choose — so our
+        AI recovered pictures locked with passwords it had never seen.</p>
+        <p class="note"><strong>2. The shuffling step barely protects anything; the
+        colour-changing step protects everything.</strong> With shuffling alone the attack
+        succeeded completely. Adding one password-controlled colour-changing step dropped it
+        to pure guesswork.</p>
+        <p class="note"><strong>3. The AI never truly "learns the cipher".</strong> It can
+        memorise about 16 passwords almost perfectly — but it transfers <em>nothing</em> to
+        password number 17. More training passwords did not help at all.</p>
+        <p class="note"><strong>4. Doing more rounds does not help.</strong> Repeating the
+        encryption 2, 3 or 4 times was no safer than doing it once.</p>
+      </div>
+    </div>
+
+    <div class="card rev mt2">
+      <h3 style=${S("font-size:16px")}>The single clearest picture of the result</h3>
+      <p class="note">We locked 1000 test photos with a brand-new password, then asked each
+      AI to recover them. We measured <strong>where the correct photo ranked</strong> among
+      1000 possibilities. Rank 1 means it picked the right photo outright. A rank around
+      500 means it was just guessing.</p>
+      <div class="tablewrap mt" style=${S("box-shadow:none")}>
+        <table><thead><tr><th class="l">the encryption used</th>
+          <th>where the right photo ranked</th><th class="l">what that means</th></tr></thead>
+        <tbody>
+          <tr><td class="l">fake cipher with no password protection</td>
+            <td style=${S("color:var(--emerald);font-weight:750")}>1st of 1000</td>
+            <td class="l">completely broken — as expected</td></tr>
+          <tr><td class="l"><strong>rows &amp; columns shuffled separately</strong></td>
+            <td style=${S("color:var(--emerald);font-weight:750")}>53rd of 1000</td>
+            <td class="l"><strong>really is leaking — top 5%, with a password never seen</strong></td></tr>
+          <tr><td class="l">proper shuffling + password-based colour change</td>
+            <td style=${S("color:var(--mut)")}>502nd of 1000</td>
+            <td class="l">pure guesswork — held up</td></tr>
+          <tr><td class="l">AES (bank-grade encryption)</td>
+            <td style=${S("color:var(--mut)")}>501st of 1000</td>
+            <td class="l">pure guesswork — as expected</td></tr>
+        </tbody></table>
+      </div>
+      <p class="note"><strong>The practical takeaway for anyone designing one of these
+      schemes:</strong> do not shuffle rows and columns separately to save time, and never
+      rely on shuffling alone — the password-driven colour-changing stage is what actually
+      keeps the image secret.</p>
+      <p class="note" style=${S("color:var(--ink2)")}><strong>And the honest limit:</strong>
+      we tested whether an AI can break in with <em>no</em> knowledge of the password. We did
+      not test an attacker who already has a few matching original/scrambled examples for
+      that exact password — that is a different and easier situation, and nothing here says
+      these schemes are safe against it.</p>
+    </div>
+  <//>`;
+
 /* --------------------------------------------------- key findings -- */
 const KeyFindings = ({ data }) => {
   const d = data.derived, c = d.counts;
@@ -942,6 +1039,7 @@ function App() {
     <${Nav} generated=${data.generated} />
     <${Hero} runs=${data.runs} />
     <${Overview} data=${data} />
+    <${PlainEnglish} />
     <${KeyFindings} data=${data} />
     <${Questions} data=${data} />
     <${Problem} />

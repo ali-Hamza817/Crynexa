@@ -29,6 +29,66 @@ attacker outputs the dataset mean. Zero-shot key-agnostic recovery is therefore
 **bounded, not merely hard** — and how far a real scheme sits from that bound is
 exactly what this framework measures.
 
+---
+
+## In plain English
+
+**The problem.** People scramble images so nobody else can see them. One popular
+family of methods uses *chaos* — maths that turns a secret password into a stream
+of unpredictable numbers, then uses those numbers to shuffle the pixels and change
+their colours. Normally you need the password to unscramble it.
+
+Our question: **if an AI studies thousands of scrambled-and-original image pairs,
+can it learn to unscramble a picture locked with a password it has never seen?**
+If so, an attacker would not need to steal your password at all.
+
+**What we built.** We wrote the encryption ourselves with a switch for each
+security feature, so we could turn them on and off one at a time and see which one
+actually does the protecting. Then we trained **223 AI attackers** against it.
+
+The important part is how we check our own work. Every test also asks: *can this AI
+unscramble the image when we DO give it the password?* If it cannot even do that,
+then failing without the password proves nothing — the AI was simply too weak. We
+report those cases as **"no information"** rather than claiming the encryption is
+safe. We also included bank-grade AES, which the attack **must** fail against, and
+a deliberately passwordless cipher, which it **must** break. Both behaved
+correctly, so the measuring instrument is trustworthy.
+
+**What we found.**
+
+1. **A common shortcut is genuinely breakable.** Some schemes shuffle rows and
+   columns separately because it is faster. That leaves a fingerprint identical for
+   every password — so our AI recovered pictures locked with passwords it had never
+   seen.
+2. **Shuffling barely protects anything; the colour-changing step protects
+   everything.** With shuffling alone the attack succeeded completely. Adding one
+   password-controlled colour-changing step dropped it to pure guesswork.
+3. **The AI never truly "learns the cipher".** It memorises about 16 passwords
+   almost perfectly, then transfers *nothing* to password 17. More training
+   passwords did not help at all.
+4. **More rounds do not help.** Repeating the encryption 2, 3 or 4 times was no
+   safer than once.
+
+**The clearest single picture.** We locked 1000 test photos with a brand-new
+password and measured where the correct photo ranked among 1000 possibilities.
+Rank 1 = picked it outright. Rank ~500 = guessing.
+
+| encryption used | where the right photo ranked | meaning |
+|---|---|---|
+| fake cipher, no password protection | **1st** of 1000 | completely broken, as expected |
+| **rows & columns shuffled separately** | **53rd** of 1000 | **really is leaking — top 5%** |
+| proper shuffling + password colour change | 502nd of 1000 | guesswork — held up |
+| AES (bank-grade) | 501st of 1000 | guesswork, as expected |
+
+**Practical takeaway.** Do not shuffle rows and columns separately to save time,
+and never rely on shuffling alone — the password-driven colour-changing stage is
+what actually keeps the image secret.
+
+**Honest limit.** We tested an attacker with *no* knowledge of the password. We did
+not test one that already holds a few matching original/scrambled examples for that
+exact password — an easier situation, and nothing here says these schemes are safe
+against it.
+
 ## Headline results
 
 | finding | evidence |
@@ -99,6 +159,19 @@ python build_web.py && python demo_run.py   # rebuild payloads
 A React app (vendored, no build step) covering methodology, datasets, cipher
 validation, calibration, the key-diversity curve, an end-to-end sample run, and
 every individual result.
+
+## Deploying the frontend
+
+The site is plain static files with React vendored in, so there is no build step.
+`vercel.json` points Vercel at `web/` — import the repository on Vercel and it
+deploys as-is, no configuration needed.
+
+Locally:
+
+```bash
+python build_web.py && python demo_run.py   # regenerate the data payloads
+./serve.sh                                  # http://localhost:8010/
+```
 
 ## Layout
 
